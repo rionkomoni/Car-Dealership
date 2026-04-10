@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 function Navbar() {
   const token = localStorage.getItem("token");
 
-  const handleLogout = () => {
+  const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     window.location.href = "/login";
@@ -19,7 +19,7 @@ function Navbar() {
         <Link to="/contact">Contact</Link>
 
         {!token ? <Link to="/login">Login</Link> : <Link to="/dashboard">Dashboard</Link>}
-        {!token ? <Link to="/register">Register</Link> : <button onClick={handleLogout}>Logout</button>}
+        {!token ? <Link to="/register">Register</Link> : <button onClick={logout}>Logout</button>}
       </nav>
     </header>
   );
