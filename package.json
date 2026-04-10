@@ -1,12 +1,12 @@
 {
   "name": "car-dealership",
   "version": "1.0.0",
-  "description": "Full-stack Car Dealership project with React, Express, MySQL, MongoDB",
+  "description": "Car Dealership: React, Express, MySQL (phpMyAdmin), MongoDB",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node backend/server.js",
-    "dev": "nodemon backend/server.js",
+    "start": "node backend/index.js",
+    "dev": "nodemon backend/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -19,6 +19,7 @@
     "react",
     "express",
     "mysql",
+    "phpmyadmin",
     "mongodb",
     "fullstack"
   ],
@@ -29,13 +30,15 @@
   },
   "homepage": "https://github.com/rionkomoni/Car-Dealership#readme",
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.2",
     "cors": "^2.8.6",
     "dotenv": "^17.4.0",
     "express": "^5.2.1",
+    "joi": "^18.0.2",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.3.3",
-    "mysql2": "^3.20.0",
-    "react-router-dom": "^7.14.0"
+    "mysql2": "^3.20.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

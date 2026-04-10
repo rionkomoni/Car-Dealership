@@ -1,14 +1,8 @@
 function Footer() {
   return (
-    <div style={{
-      background: "black",
-      color: "white",
-      padding: "10px",
-      marginTop: "40px",
-      textAlign: "center"
-    }}>
-      <p>© 2026 Car Dealership</p>
-    </div>
+    <footer className="site-footer">
+      <p>© {new Date().getFullYear()} Car Dealership · React + Express · MySQL + MongoDB</p>
+    </footer>
   );
 }
 

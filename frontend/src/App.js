@@ -1,39 +1,15 @@
-import './App.css';
+import "./App.css";
 
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
-import CarCard from "./components/CarCard";
-
+import Home from "./Pages/Home";
 import Login from "./Pages/Login.js";
-
-
-
-function Home() {
-  return (
-    <div>
-      <Navbar />
-
-      <h1 style={{ textAlign: "center" }}>Car Dealership</h1>
-
-      <div
-        style={{
-          display: "flex",
-          gap: "20px",
-          justifyContent: "center",
-          marginTop: "20px",
-        }}
-      >
-        <CarCard />
-        <CarCard />
-        <CarCard />
-      </div>
-
-      <Footer />
-    </div>
-  );
-}
+import Register from "./Pages/Register.js";
+import Contact from "./Pages/Contact.js";
+import AddCar from "./Pages/AddCar.js";
+import CarDetail from "./Pages/CarDetail.js";
+import CarLogs from "./Pages/CarLogs.js";
+import Admin from "./Pages/Admin.js";
 
 function App() {
   return (
@@ -41,6 +17,12 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/cars/new" element={<AddCar />} />
+        <Route path="/cars/:id" element={<CarDetail />} />
+        <Route path="/admin" element={<Admin />} />
+        <Route path="/logs" element={<CarLogs />} />
       </Routes>
     </BrowserRouter>
   );
