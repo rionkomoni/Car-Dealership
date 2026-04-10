@@ -18,6 +18,7 @@ export default function AddCar() {
   const [color, setColor] = useState("");
   const [bodyType, setBodyType] = useState("");
   const [description, setDescription] = useState("");
+  const [galleryRaw, setGalleryRaw] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -59,6 +60,12 @@ export default function AddCar() {
     if (color.trim()) payload.color = color.trim();
     if (bodyType.trim()) payload.body_type = bodyType.trim();
     if (description.trim()) payload.description = description.trim();
+
+    const galleryLines = galleryRaw
+      .split(/\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (galleryLines.length) payload.gallery = galleryLines;
 
     try {
       const { data } = await api.post("/api/cars", payload);
@@ -129,6 +136,16 @@ export default function AddCar() {
               value={image}
               onChange={(e) => setImage(e.target.value)}
               required
+            />
+          </label>
+          <label className="field-label">
+            Extra photo URLs (optional, one per line)
+            <textarea
+              className="field-input field-textarea"
+              rows={3}
+              placeholder="https://...&#10;https://..."
+              value={galleryRaw}
+              onChange={(e) => setGalleryRaw(e.target.value)}
             />
           </label>
 

@@ -19,7 +19,34 @@ const carBodySchema = Joi.object({
   color: Joi.string().max(50).allow("", null).optional(),
   body_type: Joi.string().max(40).allow("", null).optional(),
   description: Joi.string().max(4000).allow("", null).optional(),
+  gallery: Joi.array()
+    .items(Joi.string().max(2048))
+    .max(12)
+    .optional()
+    .allow(null),
 });
+
+function parseGalleryFromDb(value) {
+  if (value == null || value === "") return [];
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value === "string") {
+    try {
+      const p = JSON.parse(value);
+      return Array.isArray(p) ? p.filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function shapeCar(row) {
+  if (!row) return row;
+  return {
+    ...row,
+    gallery: parseGalleryFromDb(row.gallery),
+  };
+}
 
 function normalizeSpecs(body) {
   const empty = (v) => (v === "" || v === undefined ? null : v);
@@ -35,10 +62,19 @@ function normalizeSpecs(body) {
   };
 }
 
+function normalizeGalleryForDb(body) {
+  if (!body.gallery || !Array.isArray(body.gallery)) return null;
+  const cleaned = body.gallery
+    .map((s) => String(s).trim())
+    .filter(Boolean)
+    .slice(0, 12);
+  return cleaned.length ? JSON.stringify(cleaned) : null;
+}
+
 router.get("/", async (req, res) => {
   try {
     const [cars] = await pool.query("SELECT * FROM cars ORDER BY id DESC");
-    return res.json(cars);
+    return res.json(cars.map(shapeCar));
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -61,7 +97,7 @@ router.get("/:id", async (req, res) => {
       carName: car.name,
     });
 
-    return res.json(car);
+    return res.json(shapeCar(car));
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -77,14 +113,16 @@ router.post("/", auth, async (req, res) => {
   }
 
   const spec = normalizeSpecs(value);
+  const galleryJson = normalizeGalleryForDb(value);
   const { name, price, year, image } = value;
 
   try {
     const [result] = await pool.query(
       `INSERT INTO cars (
         name, price, year, image, created_by,
-        mileage_km, fuel, transmission, engine, power_hp, color, body_type, description
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        mileage_km, fuel, transmission, engine, power_hp, color, body_type, description,
+        gallery
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         name,
         price,
@@ -99,6 +137,7 @@ router.post("/", auth, async (req, res) => {
         spec.color,
         spec.body_type,
         spec.description,
+        galleryJson,
       ]
     );
 
@@ -132,11 +171,20 @@ router.put("/:id", auth, async (req, res) => {
   const carId = Number(req.params.id);
 
   try {
+    let galleryJson = normalizeGalleryForDb(value);
+    if (value.gallery === undefined) {
+      const [[existing]] = await pool.query(
+        "SELECT gallery FROM cars WHERE id = ?",
+        [carId]
+      );
+      galleryJson = existing?.gallery ?? null;
+    }
+
     await pool.query(
       `UPDATE cars SET
         name = ?, price = ?, year = ?, image = ?,
         mileage_km = ?, fuel = ?, transmission = ?, engine = ?, power_hp = ?,
-        color = ?, body_type = ?, description = ?
+        color = ?, body_type = ?, description = ?, gallery = ?
       WHERE id = ?`,
       [
         name,
@@ -151,6 +199,7 @@ router.put("/:id", auth, async (req, res) => {
         spec.color,
         spec.body_type,
         spec.description,
+        galleryJson,
         carId,
       ]
     );

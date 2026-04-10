@@ -13,6 +13,7 @@ async function ensureCarSpecColumns(pool) {
     "ADD COLUMN color VARCHAR(50) NULL",
     "ADD COLUMN body_type VARCHAR(40) NULL",
     "ADD COLUMN description TEXT NULL",
+    "ADD COLUMN gallery LONGTEXT NULL",
   ];
 
   for (const fragment of fragments) {
@@ -29,14 +30,18 @@ async function ensureCarSpecColumns(pool) {
   }
 }
 
+/** Dy pamje shtesë për çdo veturë (kënde të ndryshme). */
 const SAMPLES = [
-  // —— BMW ——
   {
     name: "BMW M4 Competition",
     price: 78500,
     year: 2023,
     image:
       "https://images.unsplash.com/photo-1617814076367-b75995f65d1c?w=800&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=1000&q=80",
+      "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=1000&q=80",
+    ],
     mileage_km: 18200,
     fuel: "Petrol",
     transmission: "8-speed M Steptronic",
@@ -53,6 +58,10 @@ const SAMPLES = [
     year: 2023,
     image:
       "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1606016159991-dfe4f264a20d?w=1000&q=80",
+      "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?w=1000&q=80",
+    ],
     mileage_km: 24800,
     fuel: "Petrol",
     transmission: "8-speed automatic",
@@ -69,6 +78,10 @@ const SAMPLES = [
     year: 2024,
     image:
       "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?w=800&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=1000&q=80",
+      "https://images.unsplash.com/photo-1617788138017-80ad40651399?w=1000&q=80",
+    ],
     mileage_km: 6200,
     fuel: "Electric",
     transmission: "Single-speed",
@@ -79,13 +92,16 @@ const SAMPLES = [
     description:
       "M adaptive suspension, IconicSounds Electric, long range. Silent M performance.",
   },
-  // —— Audi ——
   {
     name: "Audi RS6 Avant performance",
     price: 125000,
     year: 2023,
     image:
       "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=1000&q=80&fit=crop&crop=entropy",
+      "https://images.unsplash.com/photo-1614200187524-dc4118d55aa8?w=1000&q=80",
+    ],
     mileage_km: 14100,
     fuel: "Petrol",
     transmission: "8-speed Tiptronic",
@@ -102,6 +118,10 @@ const SAMPLES = [
     year: 2022,
     image:
       "https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=800&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=1000&q=80&auto=format",
+      "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=1000&q=80",
+    ],
     mileage_km: 38900,
     fuel: "Petrol",
     transmission: "8-speed automatic",
@@ -118,6 +138,10 @@ const SAMPLES = [
     year: 2023,
     image:
       "https://images.unsplash.com/photo-1614200187524-dc4118d55aa8?w=800&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1614200187524-dc4118d55aa8?w=1000&q=80&fit=crop",
+      "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=1000&q=80",
+    ],
     mileage_km: 9200,
     fuel: "Electric",
     transmission: "2-speed (rear)",
@@ -128,13 +152,16 @@ const SAMPLES = [
     description:
       "800V charging, adaptive air suspension, laser-light option. Audi’s electric grand tourer.",
   },
-  // —— Mercedes ——
   {
     name: "Mercedes-AMG C63 S",
     price: 71800,
     year: 2022,
     image:
       "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=800&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=1000&q=80&fit=crop",
+      "https://images.unsplash.com/photo-1556189250-72ba954cfc2b?w=1000&q=80",
+    ],
     mileage_km: 34100,
     fuel: "Petrol",
     transmission: "9-speed AMG Speedshift",
@@ -151,6 +178,10 @@ const SAMPLES = [
     year: 2023,
     image:
       "https://images.unsplash.com/photo-1617788138017-80ad40651399?w=800&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1617788138017-80ad40651399?w=1000&q=80&fit=crop",
+      "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?w=1000&q=80",
+    ],
     mileage_km: 11200,
     fuel: "Electric",
     transmission: "Single-speed",
@@ -167,6 +198,10 @@ const SAMPLES = [
     year: 2023,
     image:
       "https://images.unsplash.com/photo-1619405399517-d7fce0f13302?w=800&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1619405399517-d7fce0f13302?w=1000&q=80&fit=crop",
+      "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=1000&q=80",
+    ],
     mileage_km: 19500,
     fuel: "Petrol",
     transmission: "8-speed DCT",
@@ -187,10 +222,13 @@ async function seedSampleCarsIfEmpty(pool) {
 
   const sql = `INSERT INTO cars (
     name, price, year, image, created_by,
-    mileage_km, fuel, transmission, engine, power_hp, color, body_type, description
-  ) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    mileage_km, fuel, transmission, engine, power_hp, color, body_type, description,
+    gallery
+  ) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
   for (const s of SAMPLES) {
+    const galleryJson =
+      s.gallery && s.gallery.length ? JSON.stringify(s.gallery) : null;
     await pool.query(sql, [
       s.name,
       s.price,
@@ -204,6 +242,7 @@ async function seedSampleCarsIfEmpty(pool) {
       s.color,
       s.body_type,
       s.description,
+      galleryJson,
     ]);
   }
 

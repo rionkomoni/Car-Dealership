@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import api from "../api";
 import { TOKEN_KEY } from "../authStorage";
+import { getCarImageUrls } from "../utils/carGallery";
 
 function SpecBlock({ label, value }) {
   if (value === null || value === undefined || value === "") return null;
@@ -20,7 +21,20 @@ export default function CarDetail() {
   const [car, setCar] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [photoIndex, setPhotoIndex] = useState(0);
   const token = localStorage.getItem(TOKEN_KEY);
+
+  const imageUrls = useMemo(() => getCarImageUrls(car), [car]);
+
+  useEffect(() => {
+    setPhotoIndex(0);
+  }, [id]);
+
+  useEffect(() => {
+    if (photoIndex >= imageUrls.length) {
+      setPhotoIndex(0);
+    }
+  }, [imageUrls.length, photoIndex]);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,6 +100,9 @@ export default function CarDetail() {
       }
     : undefined;
 
+  const mainSrc =
+    imageUrls.length > 0 ? imageUrls[photoIndex] : null;
+
   return (
     <PageLayout>
       <section className="section wide">
@@ -99,22 +116,45 @@ export default function CarDetail() {
         {car && !loading && (
           <div className="car-detail">
             <div className="car-detail-media">
-              {car.image ? (
-                <img
-                  src={car.image}
-                  alt={car.name}
-                  className="car-detail-image"
-                />
-              ) : (
-                <div className="car-detail-image car-detail-image--placeholder">
-                  Nuk ka foto të ngarkuar
+              <div className="car-gallery-main">
+                {mainSrc ? (
+                  <img
+                    src={mainSrc}
+                    alt={`${car.name} — pamja ${photoIndex + 1}`}
+                    className="car-detail-image car-gallery-main-img"
+                  />
+                ) : (
+                  <div className="car-detail-image car-detail-image--placeholder">
+                    Nuk ka foto të ngarkuar
+                  </div>
+                )}
+                <div className="car-detail-price-strip">
+                  <span>{price}</span>
+                  <span>Viti {car.year}</span>
                 </div>
-              )}
-              <div className="car-detail-price-strip">
-                <span>{price}</span>
-                <span>Viti {car.year}</span>
               </div>
+
+              {imageUrls.length > 1 ? (
+                <div className="car-gallery-thumbs" role="tablist" aria-label="Pamje të veturës">
+                  {imageUrls.map((url, i) => (
+                    <button
+                      key={`${url}-${i}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={i === photoIndex}
+                      className={`car-gallery-thumb${i === photoIndex ? " is-active" : ""}`}
+                      onClick={() => setPhotoIndex(i)}
+                    >
+                      <img src={url} alt="" loading="lazy" decoding="async" />
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <p className="car-gallery-hint muted small">
+                Zgjidh miniaturën për të ndërruar pamjen.
+              </p>
             </div>
+
             <div className="car-detail-info">
               <h1 className="page-title left">{car.name}</h1>
               {car.body_type ? (
@@ -131,6 +171,7 @@ export default function CarDetail() {
                 ) : null}
               </p>
 
+              <h2 className="spec-section-title">Specifikacionet</h2>
               <dl className="spec-grid">
                 <SpecBlock label="Viti i modelit" value={car.year} />
                 <SpecBlock label="Kilometrazhi" value={mileage} />
@@ -148,27 +189,45 @@ export default function CarDetail() {
                 </div>
               ) : null}
 
+              <aside id="blerje" className="car-buy-panel" tabIndex={-1}>
+                <h2 className="car-buy-panel-title">Bli këtë veturë</h2>
+                <p className="car-buy-panel-price">{price}</p>
+                <p className="car-buy-panel-text">
+                  Klikoni më poshtë për të na kontaktuar. Do t’ju përgjigjemi me
+                  detaje për pagesë, dokumentacion dhe mundësi takimi.
+                </p>
+                <div className="car-detail-cta-row car-buy-panel-ctas">
+                  <Link
+                    to={`/contact?car=${car.id}`}
+                    state={contactState}
+                    className="btn btn-primary car-detail-cta car-buy-primary"
+                  >
+                    Bli tani / kërko ofertë
+                  </Link>
+                </div>
+              </aside>
+
               <div className="car-detail-options">
                 <h2 className="car-detail-options-title">
-                  Mundësitë për ta marr makinën
+                  Si funksionon blerja
                 </h2>
                 <ul className="car-detail-options-list">
                   <li>
-                    <strong>Kontakt & ofertë:</strong> na shkruani për çmim,
-                    disponueshmëri dhe pyetje — përgjigjemi sa më shpejt.
+                    <strong>Kontakt:</strong> përmes formularit ose telefonit —
+                    konfirmojmë disponueshmërinë dhe çmimin final.
                   </li>
                   <li>
-                    <strong>Financim:</strong> mund të diskutoni opsione
-                    financimi me ekipin tonë pas kontaktit fillestar.
+                    <strong>Financim:</strong> mund të diskutohet me ekipin pas
+                    hapës fillestar.
                   </li>
                   <li>
-                    <strong>Vizitë / provë:</strong> mund të organizohet takim
-                    për të parë veturën nga afër kur të jetë e disponueshme.
+                    <strong>Vizitë:</strong> mund të organizohet për të parë
+                    veturën nga afër.
                   </li>
                 </ul>
                 <div className="car-detail-cta-row">
                   <Link
-                    to="/contact"
+                    to={`/contact?car=${car.id}`}
                     state={contactState}
                     className="btn btn-primary car-detail-cta"
                   >

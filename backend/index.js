@@ -79,7 +79,8 @@ const startServer = async () => {
         power_hp SMALLINT UNSIGNED NULL,
         color VARCHAR(50) NULL,
         body_type VARCHAR(40) NULL,
-        description TEXT NULL
+        description TEXT NULL,
+        gallery LONGTEXT NULL
       )
     `);
 

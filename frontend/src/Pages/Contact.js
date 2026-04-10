@@ -1,24 +1,69 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import api from "../api";
 
+function formatPriceSq(car) {
+  const priceNum =
+    typeof car.price === "number" ? car.price : parseFloat(car.price, 10);
+  if (!Number.isFinite(priceNum)) return "";
+  return priceNum.toLocaleString("sq-AL", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+}
+
 export default function Contact() {
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
+    const carId = searchParams.get("car");
     const interest = location.state?.carInterest;
-    if (typeof interest === "string" && interest.trim()) {
-      setMessage((prev) => {
-        if (prev.trim()) return prev;
-        return `Përshëndetje,\n\nJam i interesuar për: ${interest.trim()}\n\n`;
-      });
+
+    const prefill = (text) => {
+      if (cancelled) return;
+      setMessage((prev) => (prev.trim() ? prev : text));
+    };
+
+    if (carId) {
+      (async () => {
+        try {
+          const { data } = await api.get(`/api/cars/${carId}`);
+          if (cancelled) return;
+          const p = formatPriceSq(data);
+          prefill(
+            `Përshëndetje,\n\nDua të blej / të informohem për: ${data.name}${p ? ` — ${p}` : ""} — viti ${data.year} (ID #${data.id}).\n\n`
+          );
+        } catch {
+          if (
+            !cancelled &&
+            typeof interest === "string" &&
+            interest.trim()
+          ) {
+            prefill(
+              `Përshëndetje,\n\nJam i interesuar për: ${interest.trim()}\n\n`
+            );
+          }
+        }
+      })();
+    } else if (typeof interest === "string" && interest.trim()) {
+      prefill(
+        `Përshëndetje,\n\nJam i interesuar për: ${interest.trim()}\n\n`
+      );
     }
-  }, [location.state]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, location.state]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,7 +73,7 @@ export default function Contact() {
       await api.post("/api/contact", { name, email, message });
       setStatus({
         ok: true,
-        text: "Message saved in MongoDB. We will get back to you soon.",
+        text: "Mesazhi u ruajt. Do t’ju përgjigjemi së shpejti.",
       });
       setName("");
       setEmail("");
@@ -37,7 +82,7 @@ export default function Contact() {
       const text =
         err.response?.data?.message ||
         err.message ||
-        "Could not send message";
+        "Nuk u dërgua mesazhi.";
       setStatus({ ok: false, text });
     }
   };
@@ -45,10 +90,10 @@ export default function Contact() {
   return (
     <PageLayout>
       <section className="section narrow">
-        <h1 className="page-title">Contact us</h1>
+        <h1 className="page-title">Na kontaktoni</h1>
         <p className="page-subtitle left">
-          Messages are stored in <strong>MongoDB</strong>.{" "}
-          <Link to="/">Home</Link>
+          Mesazhet ruhen në <strong>MongoDB</strong>.{" "}
+          <Link to="/">Kreu</Link>
         </p>
 
         <form className="auth-card" onSubmit={handleSubmit}>
@@ -58,7 +103,7 @@ export default function Contact() {
             </p>
           )}
           <label className="field-label">
-            Your name
+            Emri juaj
             <input
               className="field-input"
               value={name}
@@ -77,17 +122,17 @@ export default function Contact() {
             />
           </label>
           <label className="field-label">
-            Message
+            Mesazhi
             <textarea
               className="field-input field-textarea"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               required
-              rows={5}
+              rows={6}
             />
           </label>
           <button type="submit" className="btn btn-primary">
-            Send
+            Dërgo
           </button>
         </form>
       </section>
