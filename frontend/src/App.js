@@ -6,7 +6,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import CarCard from "./components/CarCard";
 
-import Login from "./pages/Login.js";
+import Login from "./Pages/Login.js";
 
 
 
