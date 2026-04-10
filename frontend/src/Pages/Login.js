@@ -7,11 +7,13 @@ import { TOKEN_KEY, USER_KEY } from "../authStorage";
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => location.state?.emailHint || "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
+  /** Pas kyçjes: faqja kryesore `/`, përveç nëse ke ardhur nga një faqe e mbrojtur (p.sh. Shto listim). */
   const from = location.state?.from || "/";
+  const registerOk = location.state?.justRegistered;
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -45,6 +47,11 @@ export default function Login() {
           <strong>Car logs</strong>.
         </p>
         <form className="auth-card" onSubmit={handleLogin}>
+          {registerOk ? (
+            <p className="success-text">
+              Llogaria u krijua. Kyçu me email-in dhe fjalëkalimin që zgjodhe.
+            </p>
+          ) : null}
           {error && <p className="error-text">{error}</p>}
           <label className="field-label">
             Email

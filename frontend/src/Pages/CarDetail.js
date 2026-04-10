@@ -34,7 +34,7 @@ export default function CarDetail() {
           setError(
             e.response?.data?.message ||
               e.message ||
-              "Could not load this vehicle."
+              "Nuk u ngarkua vetura."
           );
         }
       } finally {
@@ -48,12 +48,12 @@ export default function CarDetail() {
   }, [id]);
 
   const handleDelete = async () => {
-    if (!window.confirm("Delete this listing permanently?")) return;
+    if (!window.confirm("Të fshihet përgjithmonë ky listim?")) return;
     try {
       await api.delete(`/api/cars/${id}`);
       navigate("/");
     } catch (e) {
-      setError(e.response?.data?.message || e.message || "Delete failed");
+      setError(e.response?.data?.message || e.message || "Fshirja dështoi.");
     }
   };
 
@@ -62,15 +62,17 @@ export default function CarDetail() {
     (typeof car.price === "number" ? car.price : parseFloat(car.price, 10));
   const price =
     car && Number.isFinite(priceNum)
-      ? priceNum.toLocaleString(undefined, {
+      ? priceNum.toLocaleString("sq-AL", {
           style: "currency",
           currency: "EUR",
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
         })
       : car?.price;
 
   const power =
     car && car.power_hp != null && car.power_hp !== ""
-      ? `${car.power_hp} hp`
+      ? `${car.power_hp} HP`
       : null;
 
   const mileage =
@@ -78,52 +80,109 @@ export default function CarDetail() {
       ? `${Number(car.mileage_km).toLocaleString()} km`
       : null;
 
+  const contactState = car
+    ? {
+        carInterest: `${car.name} — ${price} — viti ${car.year} (ID #${car.id})`,
+      }
+    : undefined;
+
   return (
     <PageLayout>
       <section className="section wide">
         <p className="breadcrumb">
-          <Link to="/">← All vehicles</Link>
+          <Link to="/">← Kthehu te makinat</Link>
         </p>
 
-        {loading && <p className="muted">Loading…</p>}
+        {loading && <p className="muted">Duke ngarkuar…</p>}
         {error && <p className="error-text">{error}</p>}
 
         {car && !loading && (
           <div className="car-detail">
-            {car.image ? (
-              <img
-                src={car.image}
-                alt={car.name}
-                className="car-detail-image"
-              />
-            ) : null}
+            <div className="car-detail-media">
+              {car.image ? (
+                <img
+                  src={car.image}
+                  alt={car.name}
+                  className="car-detail-image"
+                />
+              ) : (
+                <div className="car-detail-image car-detail-image--placeholder">
+                  Nuk ka foto të ngarkuar
+                </div>
+              )}
+              <div className="car-detail-price-strip">
+                <span>{price}</span>
+                <span>Viti {car.year}</span>
+              </div>
+            </div>
             <div className="car-detail-info">
               <h1 className="page-title left">{car.name}</h1>
               {car.body_type ? (
                 <p className="car-detail-badge">{car.body_type}</p>
               ) : null}
               <p className="detail-price">{price}</p>
+              <p className="car-detail-year-line muted">
+                Modeli i vitit <strong>{car.year}</strong>
+                {mileage ? (
+                  <>
+                    {" "}
+                    · <strong>{mileage}</strong>
+                  </>
+                ) : null}
+              </p>
 
               <dl className="spec-grid">
-                <SpecBlock label="Model year" value={car.year} />
-                <SpecBlock label="Mileage" value={mileage} />
-                <SpecBlock label="Fuel" value={car.fuel} />
-                <SpecBlock label="Transmission" value={car.transmission} />
-                <SpecBlock label="Engine" value={car.engine} />
-                <SpecBlock label="Power" value={power} />
-                <SpecBlock label="Exterior color" value={car.color} />
+                <SpecBlock label="Viti i modelit" value={car.year} />
+                <SpecBlock label="Kilometrazhi" value={mileage} />
+                <SpecBlock label="Karburanti" value={car.fuel} />
+                <SpecBlock label="Transmisioni" value={car.transmission} />
+                <SpecBlock label="Motori" value={car.engine} />
+                <SpecBlock label="Fuqia" value={power} />
+                <SpecBlock label="Ngjyra" value={car.color} />
               </dl>
 
               {car.description ? (
                 <div className="car-detail-about">
-                  <h2 className="spec-section-title">About this vehicle</h2>
+                  <h2 className="spec-section-title">Për këtë veturë</h2>
                   <p className="car-detail-description">{car.description}</p>
                 </div>
               ) : null}
 
+              <div className="car-detail-options">
+                <h2 className="car-detail-options-title">
+                  Mundësitë për ta marr makinën
+                </h2>
+                <ul className="car-detail-options-list">
+                  <li>
+                    <strong>Kontakt & ofertë:</strong> na shkruani për çmim,
+                    disponueshmëri dhe pyetje — përgjigjemi sa më shpejt.
+                  </li>
+                  <li>
+                    <strong>Financim:</strong> mund të diskutoni opsione
+                    financimi me ekipin tonë pas kontaktit fillestar.
+                  </li>
+                  <li>
+                    <strong>Vizitë / provë:</strong> mund të organizohet takim
+                    për të parë veturën nga afër kur të jetë e disponueshme.
+                  </li>
+                </ul>
+                <div className="car-detail-cta-row">
+                  <Link
+                    to="/contact"
+                    state={contactState}
+                    className="btn btn-primary car-detail-cta"
+                  >
+                    Interesohem për këtë veturë
+                  </Link>
+                  <Link to="/" className="btn btn-ghost car-detail-cta-secondary">
+                    Shiko makina të tjera
+                  </Link>
+                </div>
+              </div>
+
               <p className="muted small detail-footnote">
-                Opening this page logs a <strong>view</strong> in MongoDB (Car
-                logs).
+                Hapja e kësaj faqeje regjistron një <strong>shikim</strong> në
+                sistemin e logjeve (MongoDB).
               </p>
               {token && (
                 <div className="detail-actions">
@@ -132,7 +191,7 @@ export default function CarDetail() {
                     className="btn btn-danger"
                     onClick={handleDelete}
                   >
-                    Delete listing
+                    Fshi listimin
                   </button>
                 </div>
               )}

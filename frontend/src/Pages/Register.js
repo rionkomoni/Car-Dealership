@@ -16,7 +16,9 @@ export default function Register() {
 
     try {
       await api.post("/api/auth/register", { name, email, password });
-      navigate("/login");
+      navigate("/login", {
+        state: { emailHint: email, justRegistered: true },
+      });
     } catch (err) {
       const msg =
         err.response?.data?.message ||

@@ -1,13 +1,24 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import api from "../api";
 
 export default function Contact() {
+  const location = useLocation();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState(null);
+
+  useEffect(() => {
+    const interest = location.state?.carInterest;
+    if (typeof interest === "string" && interest.trim()) {
+      setMessage((prev) => {
+        if (prev.trim()) return prev;
+        return `Përshëndetje,\n\nJam i interesuar për: ${interest.trim()}\n\n`;
+      });
+    }
+  }, [location.state]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

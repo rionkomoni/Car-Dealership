@@ -35,13 +35,21 @@ function CarCard({ car }) {
   return (
     <Link to={`/cars/${car.id}`} className="car-card-link">
       <article className="car-card">
-        {car.image ? (
-          <img
-            src={car.image}
-            alt={car.name}
-            className="car-card-image"
-          />
-        ) : null}
+        <div className="car-card-image-wrap">
+          {car.image ? (
+            <img
+              src={car.image}
+              alt={car.name}
+              className="car-card-image"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <div className="car-card-image-placeholder" aria-hidden>
+              <span>Nuk ka foto</span>
+            </div>
+          )}
+        </div>
         <div className="car-card-body">
           <h3 className="car-card-title">{car.name}</h3>
           {car.body_type ? (
