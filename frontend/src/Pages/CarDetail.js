@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSelector } from "react-redux";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import api from "../api";
-import { TOKEN_KEY } from "../authStorage";
 import { getCarImageUrls } from "../utils/carGallery";
 
 function SpecBlock({ label, value }) {
@@ -22,7 +22,7 @@ export default function CarDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [photoIndex, setPhotoIndex] = useState(0);
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = useSelector((s) => s.auth.token);
 
   const imageUrls = useMemo(() => getCarImageUrls(car), [car]);
 

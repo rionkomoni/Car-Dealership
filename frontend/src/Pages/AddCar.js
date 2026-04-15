@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import api from "../api";
-import { TOKEN_KEY } from "../authStorage";
 
 export default function AddCar() {
   const navigate = useNavigate();
@@ -20,12 +19,6 @@ export default function AddCar() {
   const [description, setDescription] = useState("");
   const [galleryRaw, setGalleryRaw] = useState("");
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!localStorage.getItem(TOKEN_KEY)) {
-      navigate("/login", { state: { from: "/cars/new" } });
-    }
-  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -78,10 +71,6 @@ export default function AddCar() {
       setError(msg);
     }
   };
-
-  if (!localStorage.getItem(TOKEN_KEY)) {
-    return null;
-  }
 
   return (
     <PageLayout>
