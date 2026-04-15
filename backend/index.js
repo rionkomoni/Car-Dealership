@@ -10,12 +10,16 @@ const connectMongo = require("./config/mongo");
 const apiLimiter = require("./middleware/rateLimiter");
 const openApiSpec = require("./docs/openapi");
 
+
 const authRoutes = require("./routes/authRoutes");
 const carRoutes = require("./routes/carRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 const carLogRoutes = require("./routes/carLogRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const v1Routes = require("./routes/v1");
+
+const { registerApiModules } = require("./modules/registerModules");
+
 const {
   ensureCarSpecColumns,
   seedSampleCarsIfEmpty,
@@ -36,11 +40,7 @@ app.get("/", (req, res) => {
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiSpec));
 app.use("/api/v1", v1Routes);
 
-app.use("/api/auth", authRoutes);
-app.use("/api/cars", carRoutes);
-app.use("/api/contact", contactRoutes);
-app.use("/api/car-logs", carLogRoutes);
-app.use("/api/admin", adminRoutes);
+registerApiModules(app);
 
 async function ensureMysqlDatabase() {
   if (process.env.MYSQL_AUTO_CREATE_DB !== "true") {

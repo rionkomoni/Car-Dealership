@@ -15,6 +15,19 @@ Projekti lidh **Fazën I** (teknologjitë dhe integrimi) me **Fazën II** (arkit
 
 Nuk është e nevojshme të përdoren të gjitha backend-et në listë — zgjedhja është **një** stack; këtu: **Express + React**.
 
+## 4. Modularizimi i sistemit
+
+Katër module të pavarura logjikisht, me **API publike**, **dokumentim teknik** (`README.md` në çdo modul), dhe **logging/monitoring** të brendshëm (`backend/lib/moduleLogger.js` + gateway global).
+
+| Moduli | API kryesore | Dokumentacion |
+|--------|--------------|---------------|
+| Autentikimi | `/api/auth` | [backend/modules/authentication/README.md](backend/modules/authentication/README.md) |
+| Menaxhimi i përdoruesve | `/api/users/me`, `/api/users` (admin) | [backend/modules/users/README.md](backend/modules/users/README.md) |
+| Operacionet biznesore | `/api/cars`, `/api/contact` | [backend/modules/business/README.md](backend/modules/business/README.md) |
+| Statistikat & raportimi | `/api/admin`, `/api/car-logs` | [backend/modules/reporting/README.md](backend/modules/reporting/README.md) |
+
+Regjistrimi qendror i rrugëve: [backend/modules/registerModules.js](backend/modules/registerModules.js) — përmbledhje: [backend/modules/README.md](backend/modules/README.md).
+
 ## Stack (Faza I — themeli)
 
 | Shtresa | Teknologji |
