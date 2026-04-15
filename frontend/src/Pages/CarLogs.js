@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import api from "../api";
-import { TOKEN_KEY } from "../authStorage";
-import { isAdmin } from "../authHelpers";
 
 function formatTime(iso) {
   if (!iso) return "—";
@@ -15,21 +13,11 @@ function formatTime(iso) {
 }
 
 export default function CarLogs() {
-  const navigate = useNavigate();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!localStorage.getItem(TOKEN_KEY)) {
-      navigate("/login", { state: { from: "/logs" } });
-      return;
-    }
-    if (!isAdmin()) {
-      navigate("/", { replace: true });
-      return;
-    }
-
     let cancelled = false;
 
     (async () => {
@@ -52,11 +40,7 @@ export default function CarLogs() {
     return () => {
       cancelled = true;
     };
-  }, [navigate]);
-
-  if (!localStorage.getItem(TOKEN_KEY) || !isAdmin()) {
-    return null;
-  }
+  }, []);
 
   return (
     <PageLayout>
