@@ -3,6 +3,7 @@ const Joi = require("joi");
 const pool = require("../config/mysql");
 const auth = require("../middleware/auth");
 const { saveCarLog } = require("../services/carLogService");
+const { cache, clearApiCache } = require("../middleware/cache");
 
 const router = express.Router();
 
@@ -48,6 +49,16 @@ function shapeCar(row) {
   };
 }
 
+function withLinks(req, car) {
+  return {
+    ...car,
+    _links: {
+      self: { href: `${req.baseUrl}/${car.id}` },
+      collection: { href: req.baseUrl },
+    },
+  };
+}
+
 function normalizeSpecs(body) {
   const empty = (v) => (v === "" || v === undefined ? null : v);
   return {
@@ -71,16 +82,22 @@ function normalizeGalleryForDb(body) {
   return cleaned.length ? JSON.stringify(cleaned) : null;
 }
 
-router.get("/", async (req, res) => {
+router.get("/", cache("2 minutes"), async (req, res) => {
   try {
     const [cars] = await pool.query("SELECT * FROM cars ORDER BY id DESC");
-    return res.json(cars.map(shapeCar));
+    const items = cars.map((car) => withLinks(req, shapeCar(car)));
+    return res.json({
+      data: items,
+      _links: {
+        self: { href: req.baseUrl },
+      },
+    });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", cache("2 minutes"), async (req, res) => {
   try {
     const [cars] = await pool.query("SELECT * FROM cars WHERE id = ?", [
       req.params.id,
@@ -97,7 +114,7 @@ router.get("/:id", async (req, res) => {
       carName: car.name,
     });
 
-    return res.json(shapeCar(car));
+    return res.json(withLinks(req, shapeCar(car)));
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -147,6 +164,7 @@ router.post("/", auth, async (req, res) => {
       userId: req.user.id,
       carName: name,
     });
+    clearApiCache();
 
     return res.status(201).json({
       message: "Vetura u shtua me sukses",
@@ -210,6 +228,7 @@ router.put("/:id", auth, async (req, res) => {
       userId: req.user.id,
       carName: name,
     });
+    clearApiCache();
 
     return res.json({ message: "Vetura u përditësua me sukses" });
   } catch (err) {
@@ -234,6 +253,7 @@ router.delete("/:id", auth, async (req, res) => {
       userId: req.user.id,
       carName,
     });
+    clearApiCache();
 
     return res.json({ message: "Vetura u fshi me sukses" });
   } catch (err) {
