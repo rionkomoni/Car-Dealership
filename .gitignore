@@ -11,3 +11,7 @@ backend/.env
 frontend/build/
 *.log
 .DS_Store
+coverage/
+
+# Git merge backup files
+*.orig
