@@ -1,3 +1,12 @@
+/**
+ * Car Dealership API — Faza I + Faza II të lidhura pa ndryshuar kontratën publike.
+ *
+ * Faza I (themeli): Express, MySQL (users/cars), MongoDB (contact, car logs),
+ * JWT, Joi, CORS; frontend React + Axios thërret `/api/*` (shih frontend/src/api.js).
+ *
+ * Faza II (arkitekturë): shtresa Presentation → Business → Persistence; gateway
+ * light + service registry; të njëjtat rrugë `/api/auth`, `/api/cars`, etj.
+ */
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
@@ -6,6 +15,13 @@ const express = require("express");
 const cors = require("cors");
 const pool = require("./config/mysql");
 const connectMongo = require("./config/mongo");
+const mongoose = require("mongoose");
+const { getServiceRegistry } = require("./integrations/serviceRegistry");
+const {
+  requestIdMiddleware,
+  rateLimitMiddleware,
+  gatewayLogger,
+} = require("./middleware/apiGateway");
 
 const authRoutes = require("./routes/authRoutes");
 const carRoutes = require("./routes/carRoutes");
@@ -23,9 +39,45 @@ const PORT = Number(process.env.PORT) || 5000;
 
 app.use(cors());
 app.use(express.json());
+app.use(requestIdMiddleware);
+app.use(rateLimitMiddleware);
+app.use(gatewayLogger);
 
 app.get("/", (req, res) => {
   res.send("Autosallon API po punon 🚀");
+});
+
+app.get("/health", (req, res) => {
+  return res.json({
+    status: "ok",
+    uptime: process.uptime(),
+    services: getServiceRegistry(),
+  });
+});
+
+app.get("/ready", async (req, res) => {
+  const mongoReady = mongoose.connection.readyState === 1;
+  let mysqlReady = false;
+  try {
+    await pool.query("SELECT 1");
+    mysqlReady = true;
+  } catch {
+    mysqlReady = false;
+  }
+
+  if (!mysqlReady) {
+    return res.status(503).json({
+      status: "degraded",
+      mysqlReady,
+      mongoReady,
+    });
+  }
+
+  return res.json({
+    status: "ready",
+    mysqlReady,
+    mongoReady,
+  });
 });
 
 app.use("/api/auth", authRoutes);
@@ -35,10 +87,6 @@ app.use("/api/car-logs", carLogRoutes);
 app.use("/api/admin", adminRoutes);
 
 async function ensureMysqlDatabase() {
-  if (process.env.MYSQL_AUTO_CREATE_DB !== "true") {
-    return;
-  }
-
   const host = process.env.MYSQL_HOST || "localhost";
   const user = process.env.MYSQL_USER || "root";
   const password = process.env.MYSQL_PASSWORD ?? "";

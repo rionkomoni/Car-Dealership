@@ -1,3 +1,8 @@
+/**
+ * Klienti HTTP i Fazës I (Axios + Bearer JWT).
+ * Kontrata me backend-in mbetet e njëjtë pas Fazës II: të njëjtat path `/api/...`;
+ * shtresa e re është vetëm brenda serverit (controllers/services/repositories).
+ */
 import axios from "axios";
 import { TOKEN_KEY } from "./authStorage";
 
