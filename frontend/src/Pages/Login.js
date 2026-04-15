@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useDispatch } from "react-redux";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import api from "../api";
-import { TOKEN_KEY, USER_KEY } from "../authStorage";
+import { setCredentials } from "../store/authSlice";
 
 export default function Login() {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState(() => location.state?.emailHint || "");
@@ -23,8 +25,9 @@ export default function Login() {
       const { data } = await api.post("/api/auth/login", { email, password });
 
       if (data.success && data.token) {
-        localStorage.setItem(TOKEN_KEY, data.token);
-        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+        dispatch(
+          setCredentials({ token: data.token, user: data.user })
+        );
         navigate(from, { replace: true });
         return;
       }
