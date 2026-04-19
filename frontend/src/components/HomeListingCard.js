@@ -36,6 +36,9 @@ export default function HomeListingCard({ car }) {
   const specLine = specParts.join(" | ");
 
   const to = `/cars/${car.id}`;
+  const contactInterest = {
+    carInterest: `${car.name} — ${priceStr} — viti ${car.year} (ID #${car.id})`,
+  };
 
   return (
     <article className="home-listing-card">
@@ -97,9 +100,18 @@ export default function HomeListingCard({ car }) {
           ) : null}
         </div>
       </Link>
-      <Link to={to} className="home-listing-more-btn">
-        Më shumë
-      </Link>
+      <div className="home-listing-actions">
+        <Link to={to} className="home-listing-action home-listing-action--detail">
+          Pamje &amp; specifikacione
+        </Link>
+        <Link
+          to={`/contact?car=${car.id}`}
+          state={contactInterest}
+          className="home-listing-action home-listing-action--buy"
+        >
+          Bli tani
+        </Link>
+      </div>
     </article>
   );
 }

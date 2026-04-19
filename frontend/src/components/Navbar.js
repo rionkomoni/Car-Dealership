@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { TOKEN_KEY, USER_KEY } from "../authStorage";
-import { getUser, isAdmin } from "../authHelpers";
+import { logout as logoutAction } from "../store/authSlice";
 
 const NAV_BREAKPOINT_PX = 768;
 
@@ -47,12 +47,13 @@ function CarLogoIcon() {
 }
 
 function Navbar() {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
-  const token = localStorage.getItem(TOKEN_KEY);
-  const user = getUser();
+  const token = useSelector((s) => s.auth.token);
+  const user = useSelector((s) => s.auth.user);
   const userName = user?.name;
-  const admin = isAdmin();
+  const admin = user?.role === "admin";
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -76,11 +77,9 @@ function Navbar() {
   }, [menuOpen]);
 
   const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    dispatch(logoutAction());
     closeMenu();
     navigate("/");
-    window.location.reload();
   };
 
   const navClass = ({ isActive }) =>

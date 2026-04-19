@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Env & local
+backend/.env
+.env
+.env.local
+
+# Build / cache
+frontend/build/
+*.log
+.DS_Store
+coverage/
+
+# Git merge backup files
+*.orig

@@ -10,6 +10,8 @@ import AddCar from "./Pages/AddCar.js";
 import CarDetail from "./Pages/CarDetail.js";
 import CarLogs from "./Pages/CarLogs.js";
 import Admin from "./Pages/Admin.js";
+import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
 
 function App() {
   return (
@@ -19,10 +21,15 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/contact" element={<Contact />} />
-        <Route path="/cars/new" element={<AddCar />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/cars/new" element={<AddCar />} />
+        </Route>
         <Route path="/cars/:id" element={<CarDetail />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/logs" element={<CarLogs />} />
+        <Route element={<AdminRoute />}>
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/logs" element={<CarLogs />} />
+        </Route>
+        <Route path="*" element={<Home />} />
       </Routes>
     </BrowserRouter>
   );

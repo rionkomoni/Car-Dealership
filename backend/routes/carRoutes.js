@@ -3,6 +3,7 @@ const Joi = require("joi");
 const pool = require("../config/mysql");
 const auth = require("../middleware/auth");
 const { saveCarLog } = require("../services/carLogService");
+const { cache, clearApiCache } = require("../middleware/cache");
 
 const router = express.Router();
 
@@ -19,7 +20,44 @@ const carBodySchema = Joi.object({
   color: Joi.string().max(50).allow("", null).optional(),
   body_type: Joi.string().max(40).allow("", null).optional(),
   description: Joi.string().max(4000).allow("", null).optional(),
+  gallery: Joi.array()
+    .items(Joi.string().max(2048))
+    .max(12)
+    .optional()
+    .allow(null),
 });
+
+function parseGalleryFromDb(value) {
+  if (value == null || value === "") return [];
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value === "string") {
+    try {
+      const p = JSON.parse(value);
+      return Array.isArray(p) ? p.filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function shapeCar(row) {
+  if (!row) return row;
+  return {
+    ...row,
+    gallery: parseGalleryFromDb(row.gallery),
+  };
+}
+
+function withLinks(req, car) {
+  return {
+    ...car,
+    _links: {
+      self: { href: `${req.baseUrl}/${car.id}` },
+      collection: { href: req.baseUrl },
+    },
+  };
+}
 
 function normalizeSpecs(body) {
   const empty = (v) => (v === "" || v === undefined ? null : v);
@@ -35,16 +73,31 @@ function normalizeSpecs(body) {
   };
 }
 
-router.get("/", async (req, res) => {
+function normalizeGalleryForDb(body) {
+  if (!body.gallery || !Array.isArray(body.gallery)) return null;
+  const cleaned = body.gallery
+    .map((s) => String(s).trim())
+    .filter(Boolean)
+    .slice(0, 12);
+  return cleaned.length ? JSON.stringify(cleaned) : null;
+}
+
+router.get("/", cache("2 minutes"), async (req, res) => {
   try {
     const [cars] = await pool.query("SELECT * FROM cars ORDER BY id DESC");
-    return res.json(cars);
+    const items = cars.map((car) => withLinks(req, shapeCar(car)));
+    return res.json({
+      data: items,
+      _links: {
+        self: { href: req.baseUrl },
+      },
+    });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", cache("2 minutes"), async (req, res) => {
   try {
     const [cars] = await pool.query("SELECT * FROM cars WHERE id = ?", [
       req.params.id,
@@ -61,7 +114,7 @@ router.get("/:id", async (req, res) => {
       carName: car.name,
     });
 
-    return res.json(car);
+    return res.json(withLinks(req, shapeCar(car)));
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -77,14 +130,16 @@ router.post("/", auth, async (req, res) => {
   }
 
   const spec = normalizeSpecs(value);
+  const galleryJson = normalizeGalleryForDb(value);
   const { name, price, year, image } = value;
 
   try {
     const [result] = await pool.query(
       `INSERT INTO cars (
         name, price, year, image, created_by,
-        mileage_km, fuel, transmission, engine, power_hp, color, body_type, description
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        mileage_km, fuel, transmission, engine, power_hp, color, body_type, description,
+        gallery
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         name,
         price,
@@ -99,6 +154,7 @@ router.post("/", auth, async (req, res) => {
         spec.color,
         spec.body_type,
         spec.description,
+        galleryJson,
       ]
     );
 
@@ -108,6 +164,7 @@ router.post("/", auth, async (req, res) => {
       userId: req.user.id,
       carName: name,
     });
+    clearApiCache();
 
     return res.status(201).json({
       message: "Vetura u shtua me sukses",
@@ -132,11 +189,20 @@ router.put("/:id", auth, async (req, res) => {
   const carId = Number(req.params.id);
 
   try {
+    let galleryJson = normalizeGalleryForDb(value);
+    if (value.gallery === undefined) {
+      const [[existing]] = await pool.query(
+        "SELECT gallery FROM cars WHERE id = ?",
+        [carId]
+      );
+      galleryJson = existing?.gallery ?? null;
+    }
+
     await pool.query(
       `UPDATE cars SET
         name = ?, price = ?, year = ?, image = ?,
         mileage_km = ?, fuel = ?, transmission = ?, engine = ?, power_hp = ?,
-        color = ?, body_type = ?, description = ?
+        color = ?, body_type = ?, description = ?, gallery = ?
       WHERE id = ?`,
       [
         name,
@@ -151,6 +217,7 @@ router.put("/:id", auth, async (req, res) => {
         spec.color,
         spec.body_type,
         spec.description,
+        galleryJson,
         carId,
       ]
     );
@@ -161,6 +228,7 @@ router.put("/:id", auth, async (req, res) => {
       userId: req.user.id,
       carName: name,
     });
+    clearApiCache();
 
     return res.json({ message: "Vetura u përditësua me sukses" });
   } catch (err) {
@@ -185,6 +253,7 @@ router.delete("/:id", auth, async (req, res) => {
       userId: req.user.id,
       carName,
     });
+    clearApiCache();
 
     return res.json({ message: "Vetura u fshi me sukses" });
   } catch (err) {

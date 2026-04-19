@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import api from "../api";
-import { TOKEN_KEY } from "../authStorage";
 
 export default function AddCar() {
   const navigate = useNavigate();
@@ -18,13 +17,8 @@ export default function AddCar() {
   const [color, setColor] = useState("");
   const [bodyType, setBodyType] = useState("");
   const [description, setDescription] = useState("");
+  const [galleryRaw, setGalleryRaw] = useState("");
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!localStorage.getItem(TOKEN_KEY)) {
-      navigate("/login", { state: { from: "/cars/new" } });
-    }
-  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -60,6 +54,12 @@ export default function AddCar() {
     if (bodyType.trim()) payload.body_type = bodyType.trim();
     if (description.trim()) payload.description = description.trim();
 
+    const galleryLines = galleryRaw
+      .split(/\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (galleryLines.length) payload.gallery = galleryLines;
+
     try {
       const { data } = await api.post("/api/cars", payload);
       const id = data.id;
@@ -71,10 +71,6 @@ export default function AddCar() {
       setError(msg);
     }
   };
-
-  if (!localStorage.getItem(TOKEN_KEY)) {
-    return null;
-  }
 
   return (
     <PageLayout>
@@ -129,6 +125,16 @@ export default function AddCar() {
               value={image}
               onChange={(e) => setImage(e.target.value)}
               required
+            />
+          </label>
+          <label className="field-label">
+            Extra photo URLs (optional, one per line)
+            <textarea
+              className="field-input field-textarea"
+              rows={3}
+              placeholder="https://...&#10;https://..."
+              value={galleryRaw}
+              onChange={(e) => setGalleryRaw(e.target.value)}
             />
           </label>
 

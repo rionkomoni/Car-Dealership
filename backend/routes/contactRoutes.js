@@ -3,6 +3,7 @@ const Joi = require("joi");
 const mongoose = require("mongoose");
 const Contact = require("../models/Contact");
 const requireAdmin = require("../middleware/requireAdmin");
+const { logModuleEvent } = require("../lib/moduleLogger");
 
 const router = express.Router();
 
@@ -28,6 +29,9 @@ router.post("/", async (req, res) => {
 
   try {
     const newContact = await Contact.create(req.body);
+    logModuleEvent("businessOperations", "contact_create", {
+      contactId: String(newContact._id),
+    });
     return res.status(201).json({
       message: "Mesazhi u ruajt me sukses",
       data: newContact,
@@ -43,6 +47,7 @@ router.get("/", requireAdmin, async (req, res) => {
       return res.json([]);
     }
     const messages = await Contact.find().sort({ createdAt: -1 }).lean();
+    logModuleEvent("reporting", "contact_inbox_read", { adminId: req.user?.id });
     return res.json(messages);
   } catch (err) {
     return res.status(500).json({ message: err.message });

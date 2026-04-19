@@ -264,13 +264,28 @@
 
 .home-listing-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
-  gap: 1.35rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: clamp(1rem, 3vw, 1.35rem);
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 900px) and (max-width: 1299px) {
+  .home-listing-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1300px) {
   .home-listing-grid {
     grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 599px) {
+  .home-listing-grid {
+    grid-template-columns: 1fr;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
   }
 }
 
@@ -418,22 +433,56 @@
   line-height: 1.4;
 }
 
-.home-listing-more-btn {
-  display: block;
+.home-listing-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   margin-top: auto;
-  padding: 0.65rem 1rem;
-  text-align: center;
-  font-weight: 600;
-  font-size: 0.92rem;
-  color: var(--text);
-  background: #fff;
   border-top: 1px solid var(--border);
-  text-decoration: none;
-  transition: background 0.15s;
+  min-height: 48px;
 }
 
-.home-listing-more-btn:hover {
-  background: #f5f6f8;
+.home-listing-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 0.5rem;
+  text-align: center;
+  font-weight: 700;
+  font-size: clamp(0.78rem, 2.8vw, 0.9rem);
+  line-height: 1.25;
+  text-decoration: none;
+  transition: background 0.15s, filter 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-listing-action--detail {
+  color: var(--text);
+  background: #f0f2f6;
+  border-right: 1px solid var(--border);
+}
+
+.home-listing-action--detail:hover {
+  background: #e4e8ef;
+}
+
+.home-listing-action--buy {
+  color: #fff;
+  background: var(--accent);
+}
+
+.home-listing-action--buy:hover {
+  filter: brightness(1.06);
+}
+
+@media (max-width: 360px) {
+  .home-listing-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .home-listing-action--detail {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
 }
 
 .home-about {
@@ -992,6 +1041,110 @@
   overflow: hidden;
   border: 1px solid var(--border);
   background: #e8ecf2;
+}
+
+.car-gallery-main {
+  position: relative;
+}
+
+.car-gallery-main-img {
+  min-height: 220px;
+  max-height: min(52vh, 480px);
+}
+
+.car-gallery-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.65rem 0.65rem 0.35rem;
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid var(--border);
+}
+
+.car-gallery-thumb {
+  flex: 0 0 auto;
+  width: 72px;
+  height: 52px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #dde1e8;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.car-gallery-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.car-gallery-thumb.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.car-gallery-thumb:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.car-gallery-hint {
+  margin: 0;
+  padding: 0 0.75rem 0.65rem;
+  font-size: 0.78rem;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+@media (min-width: 720px) {
+  .car-gallery-thumb {
+    width: 84px;
+    height: 60px;
+  }
+}
+
+.car-buy-panel {
+  margin: 1.5rem 0;
+  padding: 1.25rem 1.35rem;
+  background: linear-gradient(
+    135deg,
+    rgba(0, 51, 153, 0.08) 0%,
+    rgba(13, 71, 161, 0.12) 100%
+  );
+  border: 2px solid rgba(0, 51, 153, 0.25);
+  border-radius: 14px;
+  scroll-margin-top: 5rem;
+}
+
+.car-buy-panel-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.car-buy-panel-price {
+  margin: 0 0 0.75rem;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.car-buy-panel-text {
+  margin: 0 0 1rem;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.car-buy-panel-ctas .car-buy-primary {
+  width: 100%;
+  flex: none;
+  min-width: 0;
+  font-size: 1.02rem;
+  padding: 0.85rem 1rem;
 }
 
 .car-detail-image {
