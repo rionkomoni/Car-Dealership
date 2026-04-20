@@ -9,7 +9,7 @@ const router = express.Router();
 router.post("/register", async (req, res) => {
   const schema = Joi.object({
     name: Joi.string().min(2).required(),
-    email: Joi.string().email().required(),
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
     password: Joi.string().min(4).required(),
   });
 
@@ -46,7 +46,7 @@ router.post("/register", async (req, res) => {
 
 router.post("/login", async (req, res) => {
   const schema = Joi.object({
-    email: Joi.string().email().required(),
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
     password: Joi.string().required(),
   });
 
