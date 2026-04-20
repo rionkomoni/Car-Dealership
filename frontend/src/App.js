@@ -10,7 +10,6 @@ import AddCar from "./Pages/AddCar.js";
 import CarDetail from "./Pages/CarDetail.js";
 import CarLogs from "./Pages/CarLogs.js";
 import Admin from "./Pages/Admin.js";
-import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 
 function App() {
@@ -21,11 +20,9 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/contact" element={<Contact />} />
-        <Route element={<ProtectedRoute />}>
-          <Route path="/cars/new" element={<AddCar />} />
-        </Route>
         <Route path="/cars/:id" element={<CarDetail />} />
         <Route element={<AdminRoute />}>
+          <Route path="/cars/new" element={<AddCar />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/logs" element={<CarLogs />} />
         </Route>

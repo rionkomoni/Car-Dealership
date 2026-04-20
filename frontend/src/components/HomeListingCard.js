@@ -14,6 +14,7 @@ function formatPrice(car) {
 
 export default function HomeListingCard({ car }) {
   if (!car) return null;
+  const isSoldOut = Boolean(car.sold_out);
 
   const priceStr = formatPrice(car);
   const mileage =
@@ -60,6 +61,9 @@ export default function HomeListingCard({ car }) {
           <div className="home-listing-overlays">
             <span className="home-listing-overlay-cell">{priceStr}</span>
             <span className="home-listing-overlay-cell">{car.year}</span>
+            {isSoldOut ? (
+              <span className="home-listing-overlay-cell">SOLD OUT</span>
+            ) : null}
           </div>
         </div>
         <div className="home-listing-body">
@@ -104,13 +108,19 @@ export default function HomeListingCard({ car }) {
         <Link to={to} className="home-listing-action home-listing-action--detail">
           Pamje &amp; specifikacione
         </Link>
-        <Link
-          to={`/contact?car=${car.id}`}
-          state={contactInterest}
-          className="home-listing-action home-listing-action--buy"
-        >
-          Bli tani
-        </Link>
+        {isSoldOut ? (
+          <span className="home-listing-action home-listing-action--buy" aria-disabled="true">
+            Jo në dispozicion
+          </span>
+        ) : (
+          <Link
+            to={`/contact?car=${car.id}`}
+            state={contactInterest}
+            className="home-listing-action home-listing-action--buy"
+          >
+            Bli tani
+          </Link>
+        )}
       </div>
     </article>
   );

@@ -134,11 +134,11 @@ function Navbar() {
 
         {token ? (
           <>
-            <Link to="/cars/new" className="nav-link" onClick={closeMenu}>
-              Shto listim
-            </Link>
             {admin ? (
               <>
+                <Link to="/cars/new" className="nav-link" onClick={closeMenu}>
+                  Shto listim
+                </Link>
                 <Link to="/admin" className="nav-link nav-admin" onClick={closeMenu}>
                   Admin
                 </Link>
@@ -146,7 +146,11 @@ function Navbar() {
                   Logs
                 </Link>
               </>
-            ) : null}
+            ) : (
+              <span className="nav-link" aria-disabled>
+                User mode
+              </span>
+            )}
             {userName ? (
               <span className="nav-greeting">
                 Përshëndetje, {userName}

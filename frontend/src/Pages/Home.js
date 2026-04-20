@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import HomeListingCard from "../components/HomeListingCard";
@@ -28,6 +29,8 @@ const SHOWCASE_MODELS = [
 ];
 
 export default function Home() {
+  const role = useSelector((s) => s.auth.user?.role);
+  const isAdmin = role === "admin";
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -40,6 +43,8 @@ export default function Home() {
         const { data } = await api.get("/api/cars");
         const list = Array.isArray(data)
           ? data
+          : Array.isArray(data?.data)
+            ? data.data
           : Array.isArray(data?.cars)
             ? data.cars
             : [];
@@ -138,8 +143,13 @@ export default function Home() {
           <div className="home-empty">
             <p className="center muted">
               Ende nuk ka vetura në listë.{" "}
-              <Link to="/login">Kyçu</Link> dhe përdor{" "}
-              <Link to="/cars/new">Shto listim</Link>.
+              {isAdmin ? (
+                <>
+                  Shto inventarin nga <Link to="/admin">Admin Dashboard</Link>.
+                </>
+              ) : (
+                <>Vetëm admini mund të shtojë listime.</>
+              )}
             </p>
           </div>
         )}

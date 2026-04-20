@@ -1,6 +1,6 @@
 /**
  * Adds spec columns to `cars` (safe if already present) and seeds demo rows when empty.
- * Demo set: BMW, Audi, and Mercedes only (three of each), all different models.
+ * Demo set: 10 realistic BMW/Audi/Mercedes listings with detailed specs.
  */
 
 async function ensureCarSpecColumns(pool) {
@@ -14,6 +14,7 @@ async function ensureCarSpecColumns(pool) {
     "ADD COLUMN body_type VARCHAR(40) NULL",
     "ADD COLUMN description TEXT NULL",
     "ADD COLUMN gallery LONGTEXT NULL",
+    "ADD COLUMN sold_out TINYINT(1) NOT NULL DEFAULT 0",
   ];
 
   for (const fragment of fragments) {
@@ -51,6 +52,7 @@ const SAMPLES = [
     body_type: "Coupe",
     description:
       "M xDrive, carbon roof, adaptive M suspension. Track-ready coupe with everyday usability.",
+    sold_out: 0,
   },
   {
     name: "BMW X5 xDrive40i",
@@ -71,6 +73,7 @@ const SAMPLES = [
     body_type: "SUV",
     description:
       "Panoramic roof, Vernasca leather, Driving Assistant Professional. Spacious luxury SUV.",
+    sold_out: 0,
   },
   {
     name: "BMW i4 M50",
@@ -91,6 +94,7 @@ const SAMPLES = [
     body_type: "Gran Coupe",
     description:
       "M adaptive suspension, IconicSounds Electric, long range. Silent M performance.",
+    sold_out: 0,
   },
   {
     name: "Audi RS6 Avant performance",
@@ -111,6 +115,7 @@ const SAMPLES = [
     body_type: "Wagon",
     description:
       "Quattro sport diff, RS sport exhaust, panoramic roof. The ultimate fast family wagon.",
+    sold_out: 1,
   },
   {
     name: "Audi Q8 55 TFSI quattro",
@@ -131,6 +136,7 @@ const SAMPLES = [
     body_type: "SUV",
     description:
       "HD Matrix LED, air suspension, Valcona leather. Coupe-SUV presence with quattro grip.",
+    sold_out: 0,
   },
   {
     name: "Audi e-tron GT quattro",
@@ -151,6 +157,7 @@ const SAMPLES = [
     body_type: "Gran Turismo",
     description:
       "800V charging, adaptive air suspension, laser-light option. Audi’s electric grand tourer.",
+    sold_out: 0,
   },
   {
     name: "Mercedes-AMG C63 S",
@@ -171,6 +178,7 @@ const SAMPLES = [
     body_type: "Sedan",
     description:
       "AMG Performance seats, Burmester 3D, rear-axle steering. Thundering V8 executive.",
+    sold_out: 0,
   },
   {
     name: "Mercedes-AMG EQS 53 4MATIC+",
@@ -191,6 +199,7 @@ const SAMPLES = [
     body_type: "Sedan",
     description:
       "Hyperscreen, AMG Ride Control+, rear-wheel steering. Silent flagship with AMG edge.",
+    sold_out: 1,
   },
   {
     name: "Mercedes-AMG GLA 45 S",
@@ -211,22 +220,53 @@ const SAMPLES = [
     body_type: "SUV",
     description:
       "AMG Performance 4MATIC+, sport exhaust, MBUX. Compact SUV with hyper-hatch pace.",
+    sold_out: 0,
+  },
+  {
+    name: "Mercedes-Benz GLE 450 4MATIC",
+    price: 83400,
+    year: 2023,
+    image:
+      "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=800&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=1000&q=80&fit=crop",
+      "https://images.unsplash.com/photo-1493238792000-8113da705763?w=1000&q=80",
+    ],
+    mileage_km: 22800,
+    fuel: "Petrol",
+    transmission: "9G-TRONIC",
+    engine: "3.0L I6 turbo mild hybrid",
+    power_hp: 381,
+    color: "Selenite Grey",
+    body_type: "SUV",
+    description:
+      "AIRMATIC suspension, Burmester sound, 360 camera and advanced driver assist package.",
+    sold_out: 0,
   },
 ];
 
 async function seedSampleCarsIfEmpty(pool) {
   const [[row]] = await pool.query("SELECT COUNT(*) AS c FROM cars");
-  if (Number(row.c) > 0) {
+  const currentCount = Number(row.c);
+  if (currentCount >= 10) {
     return;
   }
+  const missing = 10 - currentCount;
+  const [existingRows] = await pool.query("SELECT name FROM cars");
+  const existingNames = new Set(existingRows.map((x) => x.name));
+  const candidates = SAMPLES.filter((s) => !existingNames.has(s.name)).slice(
+    0,
+    missing
+  );
+  if (candidates.length === 0) return;
 
   const sql = `INSERT INTO cars (
     name, price, year, image, created_by,
     mileage_km, fuel, transmission, engine, power_hp, color, body_type, description,
-    gallery
-  ) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    gallery, sold_out
+  ) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-  for (const s of SAMPLES) {
+  for (const s of candidates) {
     const galleryJson =
       s.gallery && s.gallery.length ? JSON.stringify(s.gallery) : null;
     await pool.query(sql, [
@@ -243,11 +283,12 @@ async function seedSampleCarsIfEmpty(pool) {
       s.body_type,
       s.description,
       galleryJson,
+      s.sold_out ?? 0,
     ]);
   }
 
   console.log(
-    `Sample inventory: inserted ${SAMPLES.length} BMW / Audi / Mercedes vehicles (empty table).`
+    `Sample inventory: inserted ${candidates.length} demo vehicles (target minimum: 10).`
   );
 }
 

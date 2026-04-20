@@ -88,7 +88,8 @@ const startServer = async () => {
         color VARCHAR(50) NULL,
         body_type VARCHAR(40) NULL,
         description TEXT NULL,
-        gallery LONGTEXT NULL
+        gallery LONGTEXT NULL,
+        sold_out TINYINT(1) NOT NULL DEFAULT 0
       )
     `);
 

@@ -1,7 +1,7 @@
 const express = require("express");
 const Joi = require("joi");
 const pool = require("../config/mysql");
-const auth = require("../middleware/auth");
+const requireAdmin = require("../middleware/requireAdmin");
 const { saveCarLog } = require("../services/carLogService");
 const { cache, clearApiCache } = require("../middleware/cache");
 
@@ -25,6 +25,10 @@ const carBodySchema = Joi.object({
     .max(12)
     .optional()
     .allow(null),
+});
+
+const soldOutSchema = Joi.object({
+  sold_out: Joi.boolean().required(),
 });
 
 function parseGalleryFromDb(value) {
@@ -120,7 +124,7 @@ router.get("/:id", cache("2 minutes"), async (req, res) => {
   }
 });
 
-router.post("/", auth, async (req, res) => {
+router.post("/", requireAdmin, async (req, res) => {
   const { error, value } = carBodySchema.validate(req.body, {
     stripUnknown: true,
   });
@@ -175,7 +179,7 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
-router.put("/:id", auth, async (req, res) => {
+router.put("/:id", requireAdmin, async (req, res) => {
   const { error, value } = carBodySchema.validate(req.body, {
     stripUnknown: true,
   });
@@ -236,7 +240,50 @@ router.put("/:id", auth, async (req, res) => {
   }
 });
 
-router.delete("/:id", auth, async (req, res) => {
+router.patch("/:id/sold-out", requireAdmin, async (req, res) => {
+  const { error, value } = soldOutSchema.validate(req.body, {
+    stripUnknown: true,
+  });
+  if (error) {
+    return res.status(400).json({ message: error.details[0].message });
+  }
+
+  const carId = Number(req.params.id);
+  const soldOutValue = value.sold_out ? 1 : 0;
+
+  try {
+    const [rows] = await pool.query("SELECT name FROM cars WHERE id = ?", [
+      carId,
+    ]);
+    const carName = rows[0]?.name;
+    if (!carName) {
+      return res.status(404).json({ message: "Vetura nuk u gjet" });
+    }
+
+    await pool.query("UPDATE cars SET sold_out = ? WHERE id = ?", [
+      soldOutValue,
+      carId,
+    ]);
+
+    await saveCarLog({
+      action: soldOutValue ? "mark_sold_out" : "mark_available",
+      carId,
+      userId: req.user.id,
+      carName,
+    });
+    clearApiCache();
+
+    return res.json({
+      message: soldOutValue
+        ? "Vetura u shënua sold out"
+        : "Vetura u shënua available",
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete("/:id", requireAdmin, async (req, res) => {
   const carId = Number(req.params.id);
 
   try {

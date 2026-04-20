@@ -22,7 +22,8 @@ export default function CarDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [photoIndex, setPhotoIndex] = useState(0);
-  const token = useSelector((s) => s.auth.token);
+  const role = useSelector((s) => s.auth.user?.role);
+  const isAdmin = role === "admin";
 
   const imageUrls = useMemo(() => getCarImageUrls(car), [car]);
 
@@ -197,13 +198,17 @@ export default function CarDetail() {
                   detaje për pagesë, dokumentacion dhe mundësi takimi.
                 </p>
                 <div className="car-detail-cta-row car-buy-panel-ctas">
-                  <Link
-                    to={`/contact?car=${car.id}`}
-                    state={contactState}
-                    className="btn btn-primary car-detail-cta car-buy-primary"
-                  >
-                    Bli tani / kërko ofertë
-                  </Link>
+                  {car.sold_out ? (
+                    <p className="muted">Kjo veturë është shitur (sold out).</p>
+                  ) : (
+                    <Link
+                      to={`/contact?car=${car.id}`}
+                      state={contactState}
+                      className="btn btn-primary car-detail-cta car-buy-primary"
+                    >
+                      Bli tani / kërko ofertë
+                    </Link>
+                  )}
                 </div>
               </aside>
 
@@ -226,13 +231,15 @@ export default function CarDetail() {
                   </li>
                 </ul>
                 <div className="car-detail-cta-row">
-                  <Link
-                    to={`/contact?car=${car.id}`}
-                    state={contactState}
-                    className="btn btn-primary car-detail-cta"
-                  >
-                    Interesohem për këtë veturë
-                  </Link>
+                  {!car.sold_out ? (
+                    <Link
+                      to={`/contact?car=${car.id}`}
+                      state={contactState}
+                      className="btn btn-primary car-detail-cta"
+                    >
+                      Interesohem për këtë veturë
+                    </Link>
+                  ) : null}
                   <Link to="/" className="btn btn-ghost car-detail-cta-secondary">
                     Shiko makina të tjera
                   </Link>
@@ -243,7 +250,7 @@ export default function CarDetail() {
                 Hapja e kësaj faqeje regjistron një <strong>shikim</strong> në
                 sistemin e logjeve (MongoDB).
               </p>
-              {token && (
+              {isAdmin && (
                 <div className="detail-actions">
                   <button
                     type="button"
