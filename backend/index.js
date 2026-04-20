@@ -97,6 +97,27 @@ const startServer = async () => {
       )
     `);
 
+    startupStep = "ensure purchases table";
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS purchases (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        car_id INT NOT NULL UNIQUE,
+        buyer_user_id INT NULL,
+        buyer_name VARCHAR(120) NOT NULL,
+        buyer_email VARCHAR(120) NOT NULL,
+        buyer_phone VARCHAR(40) NULL,
+        payment_method VARCHAR(40) NOT NULL,
+        car_price DECIMAL(10,2) NOT NULL,
+        trade_in_car VARCHAR(150) NULL,
+        trade_in_year INT NULL,
+        trade_in_mileage_km INT NULL,
+        trade_in_value DECIMAL(10,2) NOT NULL DEFAULT 0,
+        amount_to_add DECIMAL(10,2) NOT NULL,
+        notes TEXT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     startupStep = "ensure cars spec columns";
     await ensureCarSpecColumns(pool);
     startupStep = "seed sample cars";

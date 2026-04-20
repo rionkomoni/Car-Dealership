@@ -114,7 +114,7 @@ export default function HomeListingCard({ car }) {
           </span>
         ) : (
           <Link
-            to={`/contact?car=${car.id}`}
+            to={`/cars/${car.id}/buy`}
             state={contactInterest}
             className="home-listing-action home-listing-action--buy"
           >

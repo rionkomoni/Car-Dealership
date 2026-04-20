@@ -1,6 +1,7 @@
 const express = require("express");
 const Joi = require("joi");
 const pool = require("../config/mysql");
+const auth = require("../middleware/auth");
 const requireAdmin = require("../middleware/requireAdmin");
 const { saveCarLog } = require("../services/carLogService");
 const { cache, clearApiCache } = require("../middleware/cache");
@@ -29,6 +30,24 @@ const carBodySchema = Joi.object({
 
 const soldOutSchema = Joi.object({
   sold_out: Joi.boolean().required(),
+});
+
+const purchaseSchema = Joi.object({
+  buyer_name: Joi.string().min(2).max(120).required(),
+  buyer_email: Joi.string().email({ tlds: { allow: false } }).required(),
+  buyer_phone: Joi.string().max(40).allow("", null).optional(),
+  payment_method: Joi.string()
+    .valid("cash", "bank_transfer", "financing", "leasing")
+    .required(),
+  notes: Joi.string().max(2500).allow("", null).optional(),
+  trade_in: Joi.object({
+    current_car: Joi.string().min(2).max(150).required(),
+    year: Joi.number().integer().min(1950).max(2100).required(),
+    mileage_km: Joi.number().integer().min(0).required(),
+    estimated_value: Joi.number().min(0).required(),
+  })
+    .optional()
+    .allow(null),
 });
 
 function parseGalleryFromDb(value) {
@@ -280,6 +299,94 @@ router.patch("/:id/sold-out", requireAdmin, async (req, res) => {
     });
   } catch (err) {
     return res.status(500).json({ message: err.message });
+  }
+});
+
+router.post("/:id/purchase", auth, async (req, res) => {
+  const { error, value } = purchaseSchema.validate(req.body, {
+    stripUnknown: true,
+  });
+  if (error) {
+    return res.status(400).json({ message: error.details[0].message });
+  }
+
+  const carId = Number(req.params.id);
+  const conn = await pool.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    const [rows] = await conn.query(
+      "SELECT id, name, price, sold_out FROM cars WHERE id = ? FOR UPDATE",
+      [carId]
+    );
+    const car = rows[0];
+    if (!car) {
+      await conn.rollback();
+      return res.status(404).json({ message: "Vetura nuk u gjet" });
+    }
+    if (Number(car.sold_out) === 1) {
+      await conn.rollback();
+      return res.status(409).json({ message: "Kjo veturë është tashmë sold out." });
+    }
+
+    const price = Number(car.price);
+    const tradeValue = Number(value.trade_in?.estimated_value || 0);
+    const amountToAdd = Math.max(0, price - tradeValue);
+
+    await conn.query(
+      `INSERT INTO purchases (
+        car_id, buyer_user_id, buyer_name, buyer_email, buyer_phone, payment_method,
+        car_price, trade_in_car, trade_in_year, trade_in_mileage_km, trade_in_value,
+        amount_to_add, notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        carId,
+        req.user.id,
+        value.buyer_name,
+        value.buyer_email.toLowerCase(),
+        value.buyer_phone || null,
+        value.payment_method,
+        price,
+        value.trade_in?.current_car || null,
+        value.trade_in?.year || null,
+        value.trade_in?.mileage_km || null,
+        tradeValue,
+        amountToAdd,
+        value.notes || null,
+      ]
+    );
+
+    await conn.query("UPDATE cars SET sold_out = 1 WHERE id = ?", [carId]);
+    await conn.commit();
+
+    await saveCarLog({
+      action: "purchase",
+      carId,
+      userId: req.user.id,
+      carName: car.name,
+    });
+    clearApiCache();
+
+    return res.status(201).json({
+      message: "Blerja u regjistrua me sukses. Vetura u shënua sold out.",
+      purchase: {
+        car_id: carId,
+        car_name: car.name,
+        car_price: price,
+        trade_in_value: tradeValue,
+        amount_to_add: amountToAdd,
+        sold_out: true,
+      },
+    });
+  } catch (err) {
+    await conn.rollback();
+    if (err?.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ message: "Kjo veturë është blerë tashmë." });
+    }
+    return res.status(500).json({ message: err.message });
+  } finally {
+    conn.release();
   }
 });
 

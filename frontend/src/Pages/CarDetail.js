@@ -202,7 +202,7 @@ export default function CarDetail() {
                     <p className="muted">Kjo veturë është shitur (sold out).</p>
                   ) : (
                     <Link
-                      to={`/contact?car=${car.id}`}
+                      to={`/cars/${car.id}/buy`}
                       state={contactState}
                       className="btn btn-primary car-detail-cta car-buy-primary"
                     >
@@ -233,7 +233,7 @@ export default function CarDetail() {
                 <div className="car-detail-cta-row">
                   {!car.sold_out ? (
                     <Link
-                      to={`/contact?car=${car.id}`}
+                      to={`/cars/${car.id}/buy`}
                       state={contactState}
                       className="btn btn-primary car-detail-cta"
                     >

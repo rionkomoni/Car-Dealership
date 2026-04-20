@@ -8,26 +8,6 @@ import api from "../api";
 const HERO_CAR_IMAGE =
   "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=1400&q=85";
 
-/** Katër karta “Nga stoku ynë” si në mockup */
-const SHOWCASE_MODELS = [
-  {
-    name: "BMW 5 Series",
-    src: "https://images.unsplash.com/photo-1556189250-72ba954cfc2b?w=800&q=85",
-  },
-  {
-    name: "Audi Q7",
-    src: "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&q=85",
-  },
-  {
-    name: "Mercedes-Benz GLE",
-    src: "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=800&q=85",
-  },
-  {
-    name: "Volvo XC90",
-    src: "https://images.unsplash.com/photo-1606016159991-dfe4f264a20d?w=800&q=85",
-  },
-];
-
 export default function Home() {
   const role = useSelector((s) => s.auth.user?.role);
   const isAdmin = role === "admin";
@@ -96,39 +76,17 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="home-showcase" aria-labelledby="showcase-heading">
-        <div className="home-showcase-inner">
-          <h2 id="showcase-heading" className="home-showcase-heading">
-            Nga stoku ynë
-          </h2>
-          <div className="home-showcase-grid">
-            {SHOWCASE_MODELS.map((item) => (
-              <figure key={item.name} className="home-showcase-cell">
-                <div className="home-showcase-img-wrap">
-                  <img
-                    src={item.src}
-                    alt={item.name}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </div>
-                <figcaption className="home-showcase-caption">
-                  {item.name}
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-        </div>
-      </section>
-
       <section
         id="inventory"
         className="home-inventory-block section wide"
         aria-labelledby="inventory-heading"
       >
         <h2 id="inventory-heading" className="home-inventory-heading">
-          Makina në shitje
+          Stoku ynë - Makinat në shitje
         </h2>
+        <p className="center muted home-status">
+          Këtu gjenden të gjitha makinat në inventar ({cars.length} gjithsej).
+        </p>
 
         {loading && (
           <p className="center muted home-status">Duke ngarkuar inventarin…</p>
@@ -166,9 +124,10 @@ export default function Home() {
       <section id="about" className="home-about section">
         <h2 className="home-about-heading">Rreth nesh</h2>
         <p className="home-about-text">
-          Car Dealership ofron përzgjedhje veturash premium me transparencë të
-          plotë në çmime dhe historik. Ekipi ynë ju ndihmon të gjeni automjetin
-          e duhur dhe ju ofron mbështetje gjatë gjithë procesit.
+          Car Dealership është autosallon i specializuar për vetura të
+          verifikuara premium dhe familjare. Ne ofrojmë transparencë të plotë
+          për çmimin, kilometrat dhe gjendjen teknike, me mbështetje nga
+          konsultimi fillestar deri te finalizimi i blerjes.
         </p>
       </section>
     </PageLayout>

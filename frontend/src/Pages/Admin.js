@@ -17,6 +17,7 @@ export default function Admin() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [contacts, setContacts] = useState([]);
+  const [purchases, setPurchases] = useState([]);
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -33,14 +34,16 @@ export default function Admin() {
 
     (async () => {
       try {
-        const [statsRes, contactRes, carsRes] = await Promise.all([
+        const [statsRes, contactRes, purchaseRes, carsRes] = await Promise.all([
           api.get("/api/admin/stats"),
           api.get("/api/admin/contacts"),
+          api.get("/api/admin/purchases"),
           api.get("/api/cars"),
         ]);
         if (!cancelled) {
           setStats(statsRes.data);
           setContacts(Array.isArray(contactRes.data) ? contactRes.data : []);
+          setPurchases(Array.isArray(purchaseRes.data) ? purchaseRes.data : []);
           const list = Array.isArray(carsRes.data?.data)
             ? carsRes.data.data
             : Array.isArray(carsRes.data)
@@ -144,7 +147,84 @@ export default function Admin() {
               <span className="stat-value">{stats.contactsMongo}</span>
               <span className="stat-label">Contact msgs (MongoDB)</span>
             </div>
+            <div className="stat-card">
+              <span className="stat-value">{stats.purchases ?? 0}</span>
+              <span className="stat-label">Blerje (MySQL)</span>
+            </div>
           </div>
+        )}
+
+        <h2 className="spec-section-title" style={{ marginTop: "2rem" }}>
+          Blerjet dhe trade-in
+        </h2>
+        <p className="muted small" style={{ marginBottom: "1rem" }}>
+          Këtu shihen të gjitha blerjet e regjistruara, përfshirë zbritjen nga trade-in dhe shumën për pagesë.
+        </p>
+        {purchases.length > 0 ? (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Kur</th>
+                  <th>Vetura</th>
+                  <th>Blerësi</th>
+                  <th>Pagesa</th>
+                  <th>Trade-in</th>
+                  <th>Për të shtuar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {purchases.map((p) => (
+                  <tr key={p.id}>
+                    <td>{formatTime(p.created_at)}</td>
+                    <td>
+                      {(p.car_name || `Car #${p.car_id}`)}
+                      {p.car_year ? ` (${p.car_year})` : ""}
+                    </td>
+                    <td className="cell-wrap">
+                      <strong>{p.buyer_name}</strong>
+                      <br />
+                      <span className="muted">{p.buyer_email}</span>
+                      {p.buyer_phone ? (
+                        <>
+                          <br />
+                          <span className="muted">{p.buyer_phone}</span>
+                        </>
+                      ) : null}
+                    </td>
+                    <td>
+                      {fmtPrice(p.car_price)}
+                      <br />
+                      <span className="muted">{p.payment_method}</span>
+                    </td>
+                    <td className="cell-wrap">
+                      {p.trade_in_car ? (
+                        <>
+                          <strong>{p.trade_in_car}</strong>
+                          {p.trade_in_year ? ` (${p.trade_in_year})` : ""}
+                          <br />
+                          <span className="muted">
+                            {p.trade_in_mileage_km != null
+                              ? `${Number(p.trade_in_mileage_km).toLocaleString()} km`
+                              : "—"}
+                            {" · "}
+                            {fmtPrice(p.trade_in_value)}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="muted">Pa trade-in</span>
+                      )}
+                    </td>
+                    <td>
+                      <strong>{fmtPrice(p.amount_to_add)}</strong>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="muted">Nuk ka blerje të regjistruara ende.</p>
         )}
 
         <h2 className="spec-section-title" style={{ marginTop: "2rem" }}>
