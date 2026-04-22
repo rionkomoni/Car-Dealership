@@ -45,6 +45,23 @@ async function seedAdminUser(pool) {
     password: process.env.MANAGER_PASSWORD || "12345678",
     role: "manager",
   });
+
+  const managerPrimaryEmail = String(
+    process.env.MANAGER_EMAIL || "manager@gmail.com"
+  ).trim().toLowerCase();
+  const managerAliasEmail = String(
+    process.env.MANAGER_ALIAS_EMAIL || "menager@gmail.com"
+  ).trim().toLowerCase();
+
+  // Common typo alias to keep manager login resilient.
+  if (managerAliasEmail && managerAliasEmail !== managerPrimaryEmail) {
+    await upsertPrivilegedUser({
+      name: "Manager",
+      email: managerAliasEmail,
+      password: process.env.MANAGER_PASSWORD || "12345678",
+      role: "manager",
+    });
+  }
 }
 
 module.exports = { seedAdminUser };
