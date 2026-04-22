@@ -245,6 +245,18 @@ module.exports = {
         },
       },
     },
+    "/api/v1/admin/cars-inventory": {
+      get: {
+        tags: ["Admin"],
+        summary: "Full cars inventory for admin (no pagination; admin JWT required)",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: "All vehicles with parsed gallery" },
+          401: { description: "Unauthorized" },
+          403: { description: "Admin access required" },
+        },
+      },
+    },
     "/api/v1/manager/overview": {
       get: {
         tags: ["Manager"],

@@ -297,6 +297,7 @@ async function seedSampleCarsIfEmpty(pool) {
  * This prevents name/image mismatches after manual edits or old seeds.
  */
 async function syncSampleCarsByName(pool) {
+  // Do not sync sold_out here: it is operational state (purchase / admin) and must survive restarts.
   const sql = `UPDATE cars SET
     price = ?,
     year = ?,
@@ -309,8 +310,7 @@ async function syncSampleCarsByName(pool) {
     color = ?,
     body_type = ?,
     description = ?,
-    gallery = ?,
-    sold_out = ?
+    gallery = ?
   WHERE name = ?`;
 
   for (const s of SAMPLES) {
@@ -329,7 +329,6 @@ async function syncSampleCarsByName(pool) {
       s.body_type,
       s.description,
       galleryJson,
-      s.sold_out ?? 0,
       s.name,
     ]);
   }

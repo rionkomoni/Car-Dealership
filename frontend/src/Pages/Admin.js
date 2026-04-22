@@ -48,7 +48,7 @@ export default function Admin() {
           api.get("/api/admin/contacts"),
           api.get("/api/admin/purchases"),
           api.get("/api/admin/test-drives"),
-          api.get("/api/cars"),
+          api.get("/api/admin/cars-inventory"),
         ]);
         if (!cancelled) {
           setStats(statsRes.data);

@@ -10,9 +10,12 @@ Numërues për përdorues/vetura/kontakte, inbox kontimesh për admin, histori l
 
 | Metoda | Rruga | Përshkrim |
 |--------|-------|-----------|
-| GET | `/api/admin/stats` | `users`, `cars`, `contactsMongo` |
+| GET | `/api/admin/stats` | `users`, `cars`, `contactsMongo`, `purchases`, `testDrives` |
 | GET | `/api/admin/contacts` | Lista e mesazheve (Mongo) |
 | GET | `/api/admin/purchases` | Lista e blerjeve dhe trade-in |
+| GET | `/api/admin/test-drives` | Lista e kërkesave për test-drive |
+| PATCH | `/api/admin/test-drives/:id/status` | Ndryshim statusi (`pending` / `scheduled` / `completed` / `cancelled`) |
+| GET | `/api/admin/cars-inventory` | Inventari i plotë i makinave (pa pagination; për dashboard) |
 
 ### Manager — `/api/manager` (kërkon JWT + rol `manager` ose `admin`)
 

@@ -8,6 +8,11 @@ const { cache, clearApiCache } = require("../middleware/cache");
 const InventoryCar = require("../domain/entities/InventoryCar");
 const TradeInVehicle = require("../domain/entities/TradeInVehicle");
 const PurchaseQuote = require("../domain/entities/PurchaseQuote");
+const {
+  formatPreferredDate,
+  buildTestDriveSlotKey,
+  normalizePreferredTime,
+} = require("../lib/testDriveSlot");
 
 const router = express.Router();
 
@@ -58,7 +63,8 @@ const testDriveSchema = Joi.object({
   requester_email: Joi.string().email({ tlds: { allow: false } }).required(),
   requester_phone: Joi.string().max(40).allow("", null).optional(),
   preferred_date: Joi.date().iso().required(),
-  preferred_time: Joi.string().max(40).allow("", null).optional(),
+  /** Required so the same car/hour slot can be reserved uniquely (e.g. 09:00 or 14:30). */
+  preferred_time: Joi.string().min(3).max(40).required(),
   notes: Joi.string().max(1200).allow("", null).optional(),
 });
 
@@ -380,6 +386,19 @@ router.patch("/:id/sold-out", requireAdmin, async (req, res) => {
       carId,
     ]);
 
+    if (soldOutValue) {
+      try {
+        await pool.query(
+          `UPDATE test_drive_requests
+           SET status = 'cancelled', slot_key = NULL
+           WHERE car_id = ? AND status IN ('pending','scheduled')`,
+          [carId]
+        );
+      } catch (tdErr) {
+        if (tdErr?.code !== "ER_NO_SUCH_TABLE") throw tdErr;
+      }
+    }
+
     await saveCarLog({
       action: soldOutValue ? "mark_sold_out" : "mark_available",
       carId,
@@ -467,6 +486,18 @@ router.post("/:id/purchase", auth, async (req, res) => {
     );
 
     await conn.query("UPDATE cars SET sold_out = 1 WHERE id = ?", [carId]);
+
+    try {
+      await conn.query(
+        `UPDATE test_drive_requests
+         SET status = 'cancelled', slot_key = NULL
+         WHERE car_id = ? AND status IN ('pending','scheduled')`,
+        [carId]
+      );
+    } catch (tdErr) {
+      if (tdErr?.code !== "ER_NO_SUCH_TABLE") throw tdErr;
+    }
+
     await conn.commit();
 
     await saveCarLog({
@@ -524,22 +555,44 @@ router.post("/:id/test-drive", auth, async (req, res) => {
       return res.status(409).json({ message: "Nuk mund të prenotohet test-drive për sold out." });
     }
 
-    await pool.query(
-      `INSERT INTO test_drive_requests (
+    const dateOnly = formatPreferredDate(value.preferred_date);
+    const timeRaw = String(value.preferred_time || "").trim();
+    if (!normalizePreferredTime(timeRaw)) {
+      return res.status(400).json({
+        message: "Ora duhet në formatin HH:MM (p.sh. 09:00 ose 14:30).",
+      });
+    }
+
+    const timeStored = normalizePreferredTime(timeRaw);
+    const slotKey = buildTestDriveSlotKey(carId, dateOnly, timeStored);
+
+    try {
+      await pool.query(
+        `INSERT INTO test_drive_requests (
         car_id, requester_user_id, requester_name, requester_email, requester_phone,
-        preferred_date, preferred_time, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        carId,
-        req.user.id,
-        value.requester_name,
-        String(value.requester_email).trim().toLowerCase(),
-        value.requester_phone || null,
-        value.preferred_date,
-        value.preferred_time || null,
-        value.notes || null,
-      ]
-    );
+        preferred_date, preferred_time, notes, slot_key
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          carId,
+          req.user.id,
+          value.requester_name,
+          String(value.requester_email).trim().toLowerCase(),
+          value.requester_phone || null,
+          dateOnly,
+          timeStored,
+          value.notes || null,
+          slotKey,
+        ]
+      );
+    } catch (err) {
+      if (err?.code === "ER_DUP_ENTRY") {
+        return res.status(409).json({
+          message:
+            "Kjo orë për këtë veturë është tashmë e rezervuar. Zgjidh një datë ose orë tjetër.",
+        });
+      }
+      throw err;
+    }
 
     return res.status(201).json({
       message: "Kërkesa për test-drive u regjistrua me sukses.",

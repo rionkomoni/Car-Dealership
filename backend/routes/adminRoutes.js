@@ -3,10 +3,36 @@ const mongoose = require("mongoose");
 const pool = require("../config/mysql");
 const Contact = require("../models/Contact");
 const requireAdmin = require("../middleware/requireAdmin");
+const { buildTestDriveSlotKey } = require("../lib/testDriveSlot");
 
 const router = express.Router();
 
 router.use(requireAdmin);
+
+/** Full inventory for admin UI (no pagination cap). */
+router.get("/cars-inventory", async (req, res) => {
+  try {
+    const [cars] = await pool.query("SELECT * FROM cars ORDER BY id DESC");
+    const items = cars.map((row) => {
+      let gallery = [];
+      if (row.gallery != null && row.gallery !== "") {
+        try {
+          const p = JSON.parse(row.gallery);
+          gallery = Array.isArray(p) ? p.filter(Boolean) : [];
+        } catch {
+          gallery = [];
+        }
+      }
+      return { ...row, gallery };
+    });
+    return res.json({
+      data: items,
+      meta: { total: items.length },
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
 
 router.get("/stats", async (req, res) => {
   try {
@@ -137,15 +163,48 @@ router.patch("/test-drives/:id/status", async (req, res) => {
   }
 
   try {
+    const [rows] = await pool.query(
+      "SELECT id, car_id, preferred_date, preferred_time FROM test_drive_requests WHERE id = ?",
+      [id]
+    );
+    const row = rows[0];
+    if (!row) {
+      return res.status(404).json({ message: "Test-drive request not found." });
+    }
+
+    const slotKey =
+      status === "completed" || status === "cancelled"
+        ? null
+        : buildTestDriveSlotKey(row.car_id, row.preferred_date, row.preferred_time);
+
+    if (slotKey) {
+      const [dups] = await pool.query(
+        "SELECT id FROM test_drive_requests WHERE slot_key = ? AND id <> ? LIMIT 1",
+        [slotKey, id]
+      );
+      if (dups.length > 0) {
+        return res.status(409).json({
+          message:
+            "Kjo orë për këtë veturë është tashmë e zënë nga një kërkesë tjetër aktive.",
+        });
+      }
+    }
+
     const [result] = await pool.query(
-      "UPDATE test_drive_requests SET status = ? WHERE id = ?",
-      [status, id]
+      "UPDATE test_drive_requests SET status = ?, slot_key = ? WHERE id = ?",
+      [status, slotKey, id]
     );
     if (!result.affectedRows) {
       return res.status(404).json({ message: "Test-drive request not found." });
     }
     return res.json({ message: "Statusi u përditësua me sukses.", status });
   } catch (err) {
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({
+        message:
+          "Kjo orë për këtë veturë është tashmë e zënë nga një kërkesë tjetër aktive.",
+      });
+    }
     if (err.code === "ER_NO_SUCH_TABLE") {
       return res.status(404).json({ message: "Test-drive storage not initialized." });
     }

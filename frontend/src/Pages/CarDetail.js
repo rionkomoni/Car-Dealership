@@ -412,10 +412,13 @@ export default function CarDetail() {
                     />
                   </label>
                   <label className="field-label">
-                    Ora e preferuar
+                    Ora e preferuar (HH:MM)
                     <input
                       className="field-input"
                       placeholder="p.sh. 14:30"
+                      required
+                      pattern="[0-9]{1,2}:[0-9]{2}"
+                      title="Format: orë:minuta, p.sh. 09:00 ose 14:30"
                       value={booking.preferred_time}
                       onChange={(e) =>
                         setBooking((p) => ({ ...p, preferred_time: e.target.value }))

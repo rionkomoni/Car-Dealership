@@ -59,6 +59,53 @@ async function ensureMysqlDatabase() {
   await conn.end();
 }
 
+async function ensureTestDriveSlotKey(pool) {
+  try {
+    await pool.query(
+      "ALTER TABLE test_drive_requests ADD COLUMN slot_key VARCHAR(191) NULL"
+    );
+  } catch (err) {
+    const dup =
+      err.code === "ER_DUP_FIELDNAME" ||
+      (err.message && err.message.includes("Duplicate column name"));
+    if (!dup) throw err;
+  }
+  try {
+    await pool.query(
+      "CREATE UNIQUE INDEX uq_test_drive_slot_key ON test_drive_requests (slot_key)"
+    );
+  } catch (err) {
+    const dup =
+      err.code === "ER_DUP_KEYNAME" ||
+      (err.message && err.message.includes("Duplicate key name"));
+    if (!dup) throw err;
+  }
+
+  const { buildTestDriveSlotKey } = require("./lib/testDriveSlot");
+  const [rows] = await pool.query(
+    `SELECT id, car_id, preferred_date, preferred_time
+     FROM test_drive_requests
+     WHERE slot_key IS NULL AND status IN ('pending','scheduled')`
+  );
+  for (const r of rows) {
+    const sk = buildTestDriveSlotKey(r.car_id, r.preferred_date, r.preferred_time);
+    try {
+      await pool.query("UPDATE test_drive_requests SET slot_key = ? WHERE id = ?", [
+        sk,
+        r.id,
+      ]);
+    } catch (err) {
+      if (err.code === "ER_DUP_ENTRY") {
+        console.warn(
+          `test_drive_requests: could not assign slot_key for id=${r.id} (duplicate slot); leave NULL or resolve manually.`
+        );
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
 async function ensurePurchaseColumns() {
   const fragments = [
     "ADD COLUMN trade_in_status VARCHAR(20) NOT NULL DEFAULT 'pending'",
@@ -217,6 +264,11 @@ async function ensureAdvancedRelationalModel() {
     "purchases",
     "fk_purchases_manager_reviewed_by",
     "ALTER TABLE purchases ADD CONSTRAINT fk_purchases_manager_reviewed_by FOREIGN KEY (manager_reviewed_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE"
+  );
+  await ensureForeignKey(
+    "test_drive_requests",
+    "fk_test_drive_requests_car_id",
+    "ALTER TABLE test_drive_requests ADD CONSTRAINT fk_test_drive_requests_car_id FOREIGN KEY (car_id) REFERENCES cars(id) ON DELETE CASCADE ON UPDATE CASCADE"
   );
 
   // Optimized indexes.
@@ -379,6 +431,8 @@ const startServer = async () => {
         INDEX idx_test_drive_status_date (status, preferred_date)
       )
     `);
+    startupStep = "ensure test_drive slot_key unique";
+    await ensureTestDriveSlotKey(pool);
     startupStep = "ensure purchases columns";
     await ensurePurchaseColumns();
     startupStep = "ensure db constraints and indexes";
