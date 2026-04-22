@@ -320,7 +320,7 @@ router.post("/:id/purchase", auth, async (req, res) => {
     await conn.beginTransaction();
 
     const [rows] = await conn.query(
-      "SELECT id, name, price, sold_out FROM cars WHERE id = ? FOR UPDATE",
+      "SELECT id, name, year, mileage_km, price, sold_out FROM cars WHERE id = ? FOR UPDATE",
       [carId]
     );
     const car = rows[0];

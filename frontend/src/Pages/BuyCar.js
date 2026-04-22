@@ -123,12 +123,14 @@ export default function BuyCar() {
     setIsSubmitting(true);
     try {
       const { data } = await api.post(`/api/cars/${id}/purchase`, payload);
-      setSuccess(data?.message || "Blerja u regjistrua me sukses.");
-      showToast("Blerja u regjistrua me sukses.", "success");
+      const successMsg = data?.message || "Blerja u regjistrua me sukses.";
+      setSuccess(successMsg);
+      showToast(successMsg, "success");
       setTimeout(() => navigate(`/cars/${id}`), 1200);
     } catch (e) {
-      setError(e.response?.data?.message || e.message || "Blerja dështoi.");
-      showToast("Blerja dështoi.", "error");
+      const errorMsg = e.response?.data?.message || e.message || "Blerja dështoi.";
+      setError(errorMsg);
+      showToast(errorMsg, "error");
     } finally {
       setIsSubmitting(false);
     }
