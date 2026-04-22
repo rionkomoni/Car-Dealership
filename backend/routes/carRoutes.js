@@ -5,6 +5,9 @@ const auth = require("../middleware/auth");
 const requireAdmin = require("../middleware/requireAdmin");
 const { saveCarLog } = require("../services/carLogService");
 const { cache, clearApiCache } = require("../middleware/cache");
+const InventoryCar = require("../domain/entities/InventoryCar");
+const TradeInVehicle = require("../domain/entities/TradeInVehicle");
+const PurchaseQuote = require("../domain/entities/PurchaseQuote");
 
 const router = express.Router();
 
@@ -325,14 +328,26 @@ router.post("/:id/purchase", auth, async (req, res) => {
       await conn.rollback();
       return res.status(404).json({ message: "Vetura nuk u gjet" });
     }
-    if (Number(car.sold_out) === 1) {
+
+    let inventoryCar;
+    let tradeInVehicle = null;
+    let quote;
+    try {
+      inventoryCar = new InventoryCar(car);
+      if (value.trade_in) {
+        tradeInVehicle = new TradeInVehicle(value.trade_in);
+      }
+      quote = new PurchaseQuote({ inventoryCar, tradeInVehicle });
+      quote.validateBusinessRules();
+    } catch (modelErr) {
       await conn.rollback();
-      return res.status(409).json({ message: "Kjo veturë është tashmë sold out." });
+      const isSoldOut = /sold out/i.test(modelErr.message);
+      return res.status(isSoldOut ? 409 : 400).json({ message: modelErr.message });
     }
 
-    const price = Number(car.price);
-    const tradeValue = Number(value.trade_in?.estimated_value || 0);
-    const amountToAdd = Math.max(0, price - tradeValue);
+    const price = inventoryCar.price;
+    const tradeValue = quote.getTradeInValue();
+    const amountToAdd = quote.calculateAmountToAdd();
 
     await conn.query(
       `INSERT INTO purchases (
@@ -348,9 +363,9 @@ router.post("/:id/purchase", auth, async (req, res) => {
         value.buyer_phone || null,
         value.payment_method,
         price,
-        value.trade_in?.current_car || null,
-        value.trade_in?.year || null,
-        value.trade_in?.mileage_km || null,
+        tradeInVehicle?.name || null,
+        tradeInVehicle?.year || null,
+        tradeInVehicle?.mileageKm || null,
         tradeValue,
         amountToAdd,
         value.notes || null,

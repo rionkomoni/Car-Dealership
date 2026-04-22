@@ -58,7 +58,9 @@ describe("Phase 2 endpoint coverage", () => {
       release: jest.fn(() => {}),
       query: jest
         .fn()
-        .mockResolvedValueOnce([[{ id: 5, name: "BMW X5", price: 30000, sold_out: 0 }]])
+        .mockResolvedValueOnce([
+          [{ id: 5, name: "BMW X5", year: 2022, mileage_km: 24000, price: 30000, sold_out: 0 }],
+        ])
         .mockResolvedValueOnce([{}]) // insert purchase
         .mockResolvedValueOnce([{}]), // update sold_out
     };

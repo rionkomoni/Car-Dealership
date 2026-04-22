@@ -4,7 +4,15 @@ const carLogSchema = new mongoose.Schema(
   {
     action: {
       type: String,
-      enum: ["view", "create", "update", "delete"],
+      enum: [
+        "view",
+        "create",
+        "update",
+        "delete",
+        "purchase",
+        "mark_sold_out",
+        "mark_available",
+      ],
       required: true,
     },
     carId: { type: Number },
