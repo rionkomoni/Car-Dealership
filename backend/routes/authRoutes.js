@@ -9,22 +9,33 @@ const router = express.Router();
 router.post("/register", async (req, res) => {
   const schema = Joi.object({
     name: Joi.string().min(2).required(),
-    email: Joi.string().email({ tlds: { allow: false } }).required(),
+    email: Joi.string()
+      .trim()
+      .lowercase()
+      .email({ tlds: { allow: false } })
+      .required(),
     password: Joi.string().min(4).required(),
   });
 
-  const { error } = schema.validate(req.body);
+  const payload = {
+    ...req.body,
+    email: String(req.body?.email || "")
+      .trim()
+      .toLowerCase(),
+  };
+  const { error } = schema.validate(payload);
 
   if (error) {
     return res.status(400).json({ message: error.details[0].message });
   }
 
-  const { name, email, password } = req.body;
+  const { name, email, password } = payload;
+  const normalizedEmail = String(email).trim().toLowerCase();
 
   try {
     const [existingUser] = await pool.query(
       "SELECT * FROM users WHERE email = ?",
-      [email]
+      [normalizedEmail]
     );
 
     if (existingUser.length > 0) {
@@ -35,7 +46,7 @@ router.post("/register", async (req, res) => {
 
     await pool.query(
       "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
-      [name, email, hashedPassword, "client"]
+      [name, normalizedEmail, hashedPassword, "client"]
     );
 
     return res.status(201).json({ message: "Regjistrimi u krye me sukses" });
@@ -46,22 +57,33 @@ router.post("/register", async (req, res) => {
 
 router.post("/login", async (req, res) => {
   const schema = Joi.object({
-    email: Joi.string().email({ tlds: { allow: false } }).required(),
+    email: Joi.string()
+      .trim()
+      .lowercase()
+      .email({ tlds: { allow: false } })
+      .required(),
     password: Joi.string().required(),
   });
 
-  const { error } = schema.validate(req.body);
+  const payload = {
+    ...req.body,
+    email: String(req.body?.email || "")
+      .trim()
+      .toLowerCase(),
+  };
+  const { error } = schema.validate(payload);
 
   if (error) {
     return res.status(400).json({ message: error.details[0].message });
   }
 
-  const { email, password } = req.body;
+  const { email, password } = payload;
+  const normalizedEmail = String(email).trim().toLowerCase();
   const secret = process.env.JWT_SECRET || "sekreti123";
 
   try {
     const [rows] = await pool.query("SELECT * FROM users WHERE email = ?", [
-      email,
+      normalizedEmail,
     ]);
 
     if (rows.length === 0) {
