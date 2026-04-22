@@ -2,6 +2,16 @@
 
 Projekti lidh **Fazën I** (teknologjitë dhe integrimi) me **Fazën II** (arkitekturë e shtresuar) pa ndryshuar URL-të publike të API-së — frontend-i vazhdon të përdorë të njëjtat thirrje `axios` te `/api/*`.
 
+## Faza II - Checklist (i implementuar)
+
+- Arkitekturë e shtresuar me module: authentication, users, business, reporting.
+- API versionim dhe health: `/api/v1/*`, `/api/v1/health`.
+- OpenAPI 3.0 në `backend/docs/openapi.js` dhe Swagger UI te `/api-docs`.
+- JWT auth, rate limiting, caching dhe HATEOAS në endpoint-et e makinave.
+- Rrjedhë blerjeje me trade-in: `POST /api/cars/:id/purchase` (markon automatikisht `sold_out`).
+- Menaxhim admin: `PATCH /api/cars/:id/sold-out`, `GET /api/admin/stats`, `GET /api/admin/purchases`.
+- Unit + integration tests në `tests/` (auth middleware, health/docs, phase2 endpoints).
+
 ## 3. Frameworks & Teknologjitë (përputhje me rubrikën)
 
 | Kërkesë | Si implementohet në këtë projekt |
