@@ -12,7 +12,13 @@ function formatPrice(car) {
   });
 }
 
-export default function HomeListingCard({ car }) {
+export default function HomeListingCard({
+  car,
+  isWishlisted = false,
+  isCompared = false,
+  onToggleWishlist,
+  onToggleCompare,
+}) {
   if (!car) return null;
   const isSoldOut = Boolean(car.sold_out);
 
@@ -121,6 +127,20 @@ export default function HomeListingCard({ car }) {
             Bli tani
           </Link>
         )}
+        <button
+          type="button"
+          className="home-listing-action home-listing-action--detail"
+          onClick={() => onToggleCompare?.(car)}
+        >
+          {isCompared ? "Hiq krahasimin" : "Krahaso"}
+        </button>
+        <button
+          type="button"
+          className="home-listing-action home-listing-action--detail"
+          onClick={() => onToggleWishlist?.(car)}
+        >
+          {isWishlisted ? "Hiq favoritin" : "Ruaj favorit"}
+        </button>
       </div>
     </article>
   );

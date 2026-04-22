@@ -292,7 +292,51 @@ async function seedSampleCarsIfEmpty(pool) {
   );
 }
 
+/**
+ * Keeps sample inventory visuals/specs consistent for existing demo rows.
+ * This prevents name/image mismatches after manual edits or old seeds.
+ */
+async function syncSampleCarsByName(pool) {
+  const sql = `UPDATE cars SET
+    price = ?,
+    year = ?,
+    image = ?,
+    mileage_km = ?,
+    fuel = ?,
+    transmission = ?,
+    engine = ?,
+    power_hp = ?,
+    color = ?,
+    body_type = ?,
+    description = ?,
+    gallery = ?,
+    sold_out = ?
+  WHERE name = ?`;
+
+  for (const s of SAMPLES) {
+    const galleryJson =
+      s.gallery && s.gallery.length ? JSON.stringify(s.gallery) : null;
+    await pool.query(sql, [
+      s.price,
+      s.year,
+      s.image,
+      s.mileage_km,
+      s.fuel,
+      s.transmission,
+      s.engine,
+      s.power_hp,
+      s.color,
+      s.body_type,
+      s.description,
+      galleryJson,
+      s.sold_out ?? 0,
+      s.name,
+    ]);
+  }
+}
+
 module.exports = {
   ensureCarSpecColumns,
   seedSampleCarsIfEmpty,
+  syncSampleCarsByName,
 };

@@ -23,6 +23,7 @@ const { registerApiModules } = require("./modules/registerModules");
 const {
   ensureCarSpecColumns,
   seedSampleCarsIfEmpty,
+  syncSampleCarsByName,
 } = require("./db/seedSampleCars");
 const { seedAdminUser } = require("./db/seedAdmin");
 
@@ -359,6 +360,25 @@ const startServer = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    startupStep = "ensure test_drive_requests table";
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS test_drive_requests (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        car_id INT NOT NULL,
+        requester_user_id INT NULL,
+        requester_name VARCHAR(120) NOT NULL,
+        requester_email VARCHAR(120) NOT NULL,
+        requester_phone VARCHAR(40) NULL,
+        preferred_date DATE NOT NULL,
+        preferred_time VARCHAR(40) NULL,
+        notes TEXT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_test_drive_created_at (created_at),
+        INDEX idx_test_drive_status_date (status, preferred_date)
+      )
+    `);
     startupStep = "ensure purchases columns";
     await ensurePurchaseColumns();
     startupStep = "ensure db constraints and indexes";
@@ -370,6 +390,8 @@ const startServer = async () => {
     await ensureCarSpecColumns(pool);
     startupStep = "seed sample cars";
     await seedSampleCarsIfEmpty(pool);
+    startupStep = "sync sample cars visuals/specs";
+    await syncSampleCarsByName(pool);
     startupStep = "seed admin user";
     await seedAdminUser(pool);
 

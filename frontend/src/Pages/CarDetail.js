@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import api from "../api";
 import { getCarImageUrls } from "../utils/carGallery";
+import { useAppToast } from "../components/ui/AppToastProvider";
 
 function SpecBlock({ label, value }) {
   if (value === null || value === undefined || value === "") return null;
@@ -23,7 +24,21 @@ export default function CarDetail() {
   const [error, setError] = useState("");
   const [photoIndex, setPhotoIndex] = useState(0);
   const role = useSelector((s) => s.auth.user?.role);
+  const user = useSelector((s) => s.auth.user);
   const isAdmin = role === "admin";
+  const { showToast } = useAppToast();
+  const [downPayment, setDownPayment] = useState("");
+  const [months, setMonths] = useState(36);
+  const [interestRate, setInterestRate] = useState(6.5);
+  const [booking, setBooking] = useState({
+    requester_name: "",
+    requester_email: "",
+    requester_phone: "",
+    preferred_date: "",
+    preferred_time: "",
+    notes: "",
+  });
+  const [bookingSubmitting, setBookingSubmitting] = useState(false);
 
   const imageUrls = useMemo(() => getCarImageUrls(car), [car]);
 
@@ -101,8 +116,67 @@ export default function CarDetail() {
       }
     : undefined;
 
+  useEffect(() => {
+    setBooking((prev) => ({
+      ...prev,
+      requester_name: user?.name || "",
+      requester_email: user?.email || "",
+    }));
+  }, [user?.name, user?.email]);
+
   const mainSrc =
     imageUrls.length > 0 ? imageUrls[photoIndex] : null;
+
+  const finance = useMemo(() => {
+    const priceValue = Number(priceNum || 0);
+    const dp = Math.max(0, Number(downPayment || 0));
+    const principal = Math.max(0, priceValue - dp);
+    const n = Math.max(1, Number(months || 1));
+    const monthlyRate = Math.max(0, Number(interestRate || 0)) / 100 / 12;
+    if (principal <= 0) {
+      return { principal: 0, monthly: 0, total: 0 };
+    }
+    const monthly =
+      monthlyRate === 0
+        ? principal / n
+        : (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -n));
+    return {
+      principal,
+      monthly,
+      total: monthly * n,
+    };
+  }, [priceNum, downPayment, months, interestRate]);
+
+  const submitBooking = async (e) => {
+    e.preventDefault();
+    if (!user?.id) {
+      showToast("Duhet të kyçeni për të rezervuar test-drive.", "error");
+      navigate("/login");
+      return;
+    }
+    setBookingSubmitting(true);
+    try {
+      const payload = {
+        ...booking,
+        requester_name: booking.requester_name.trim(),
+        requester_email: booking.requester_email.trim(),
+        requester_phone: booking.requester_phone.trim(),
+        notes: booking.notes.trim(),
+      };
+      await api.post(`/api/cars/${id}/test-drive`, payload);
+      showToast("Kërkesa për test-drive u dërgua me sukses.", "success");
+      setBooking((prev) => ({
+        ...prev,
+        preferred_date: "",
+        preferred_time: "",
+        notes: "",
+      }));
+    } catch (e1) {
+      showToast(e1.response?.data?.message || "Dërgimi i test-drive dështoi.", "error");
+    } finally {
+      setBookingSubmitting(false);
+    }
+  };
 
   return (
     <PageLayout>
@@ -244,6 +318,129 @@ export default function CarDetail() {
                     Shiko makina të tjera
                   </Link>
                 </div>
+              </div>
+
+              <div className="car-detail-options">
+                <h2 className="car-detail-options-title">Kalkulator financimi</h2>
+                <div className="spec-grid">
+                  <label className="field-label">
+                    Down payment (EUR)
+                    <input
+                      className="field-input"
+                      type="number"
+                      min="0"
+                      value={downPayment}
+                      onChange={(e) => setDownPayment(e.target.value)}
+                    />
+                  </label>
+                  <label className="field-label">
+                    Muaj
+                    <input
+                      className="field-input"
+                      type="number"
+                      min="6"
+                      max="96"
+                      value={months}
+                      onChange={(e) => setMonths(e.target.value)}
+                    />
+                  </label>
+                  <label className="field-label">
+                    Interesi vjetor (%)
+                    <input
+                      className="field-input"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={interestRate}
+                      onChange={(e) => setInterestRate(e.target.value)}
+                    />
+                  </label>
+                </div>
+                <p className="muted">
+                  Principal: <strong>{finance.principal.toFixed(2)} EUR</strong> · Kësti mujor:{" "}
+                  <strong>{finance.monthly.toFixed(2)} EUR</strong> · Totali:{" "}
+                  <strong>{finance.total.toFixed(2)} EUR</strong>
+                </p>
+              </div>
+
+              <div className="car-detail-options">
+                <h2 className="car-detail-options-title">Rezervo test-drive</h2>
+                <form className="auth-card" onSubmit={submitBooking}>
+                  <label className="field-label">
+                    Emri
+                    <input
+                      className="field-input"
+                      required
+                      value={booking.requester_name}
+                      onChange={(e) =>
+                        setBooking((p) => ({ ...p, requester_name: e.target.value }))
+                      }
+                    />
+                  </label>
+                  <label className="field-label">
+                    Email
+                    <input
+                      className="field-input"
+                      type="email"
+                      required
+                      value={booking.requester_email}
+                      onChange={(e) =>
+                        setBooking((p) => ({ ...p, requester_email: e.target.value }))
+                      }
+                    />
+                  </label>
+                  <label className="field-label">
+                    Telefoni
+                    <input
+                      className="field-input"
+                      value={booking.requester_phone}
+                      onChange={(e) =>
+                        setBooking((p) => ({ ...p, requester_phone: e.target.value }))
+                      }
+                    />
+                  </label>
+                  <label className="field-label">
+                    Data e preferuar
+                    <input
+                      className="field-input"
+                      type="date"
+                      required
+                      value={booking.preferred_date}
+                      onChange={(e) =>
+                        setBooking((p) => ({ ...p, preferred_date: e.target.value }))
+                      }
+                    />
+                  </label>
+                  <label className="field-label">
+                    Ora e preferuar
+                    <input
+                      className="field-input"
+                      placeholder="p.sh. 14:30"
+                      value={booking.preferred_time}
+                      onChange={(e) =>
+                        setBooking((p) => ({ ...p, preferred_time: e.target.value }))
+                      }
+                    />
+                  </label>
+                  <label className="field-label">
+                    Shënime
+                    <textarea
+                      className="field-input field-textarea"
+                      rows={3}
+                      value={booking.notes}
+                      onChange={(e) =>
+                        setBooking((p) => ({ ...p, notes: e.target.value }))
+                      }
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={bookingSubmitting || Boolean(car?.sold_out)}
+                  >
+                    {bookingSubmitting ? "Duke dërguar..." : "Dërgo kërkesën"}
+                  </button>
+                </form>
               </div>
 
               <p className="muted small detail-footnote">

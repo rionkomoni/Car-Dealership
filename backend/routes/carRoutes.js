@@ -53,6 +53,15 @@ const purchaseSchema = Joi.object({
     .allow(null),
 });
 
+const testDriveSchema = Joi.object({
+  requester_name: Joi.string().min(2).max(120).required(),
+  requester_email: Joi.string().email({ tlds: { allow: false } }).required(),
+  requester_phone: Joi.string().max(40).allow("", null).optional(),
+  preferred_date: Joi.date().iso().required(),
+  preferred_time: Joi.string().max(40).allow("", null).optional(),
+  notes: Joi.string().max(1200).allow("", null).optional(),
+});
+
 function parseGalleryFromDb(value) {
   if (value == null || value === "") return [];
   if (Array.isArray(value)) return value.filter(Boolean);
@@ -110,10 +119,94 @@ function normalizeGalleryForDb(body) {
 
 router.get("/", cache("2 minutes"), async (req, res) => {
   try {
-    const [cars] = await pool.query("SELECT * FROM cars ORDER BY id DESC");
+    const {
+      q,
+      minPrice,
+      maxPrice,
+      minYear,
+      maxYear,
+      fuel,
+      transmission,
+      bodyType,
+      availableOnly,
+      sort = "latest",
+      page = 1,
+      pageSize = 12,
+    } = req.query;
+
+    const where = [];
+    const params = [];
+
+    if (q) {
+      where.push("(name LIKE ? OR engine LIKE ? OR color LIKE ?)");
+      const like = `%${String(q).trim()}%`;
+      params.push(like, like, like);
+    }
+    if (minPrice !== undefined && minPrice !== "") {
+      where.push("price >= ?");
+      params.push(Number(minPrice));
+    }
+    if (maxPrice !== undefined && maxPrice !== "") {
+      where.push("price <= ?");
+      params.push(Number(maxPrice));
+    }
+    if (minYear !== undefined && minYear !== "") {
+      where.push("year >= ?");
+      params.push(Number(minYear));
+    }
+    if (maxYear !== undefined && maxYear !== "") {
+      where.push("year <= ?");
+      params.push(Number(maxYear));
+    }
+    if (fuel) {
+      where.push("fuel = ?");
+      params.push(String(fuel).trim());
+    }
+    if (transmission) {
+      where.push("transmission = ?");
+      params.push(String(transmission).trim());
+    }
+    if (bodyType) {
+      where.push("body_type = ?");
+      params.push(String(bodyType).trim());
+    }
+    if (String(availableOnly) === "true") {
+      where.push("sold_out = 0");
+    }
+
+    const orderMap = {
+      latest: "id DESC",
+      price_asc: "price ASC",
+      price_desc: "price DESC",
+      year_desc: "year DESC",
+      year_asc: "year ASC",
+      mileage_asc: "mileage_km ASC",
+      mileage_desc: "mileage_km DESC",
+    };
+    const orderBy = orderMap[sort] || orderMap.latest;
+
+    const safePage = Math.max(1, Number(page) || 1);
+    const safePageSize = Math.min(48, Math.max(1, Number(pageSize) || 12));
+    const offset = (safePage - 1) * safePageSize;
+
+    const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+    const [cars] = await pool.query(
+      `SELECT * FROM cars ${whereSql} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
+      [...params, safePageSize, offset]
+    );
+    const [[countRow]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM cars ${whereSql}`,
+      params
+    );
     const items = cars.map((car) => withLinks(req, shapeCar(car)));
     return res.json({
       data: items,
+      meta: {
+        total: Number(countRow.total || 0),
+        page: safePage,
+        pageSize: safePageSize,
+        totalPages: Math.max(1, Math.ceil(Number(countRow.total || 0) / safePageSize)),
+      },
       _links: {
         self: { href: req.baseUrl },
       },
@@ -403,6 +496,56 @@ router.post("/:id/purchase", auth, async (req, res) => {
     return res.status(500).json({ message: err.message });
   } finally {
     conn.release();
+  }
+});
+
+router.post("/:id/test-drive", auth, async (req, res) => {
+  const { error, value } = testDriveSchema.validate(req.body, {
+    stripUnknown: true,
+  });
+  if (error) {
+    return res.status(400).json({ message: error.details[0].message });
+  }
+
+  const carId = Number(req.params.id);
+  if (!Number.isInteger(carId) || carId <= 0) {
+    return res.status(400).json({ message: "Invalid car id." });
+  }
+
+  try {
+    const [cars] = await pool.query("SELECT id, name, sold_out FROM cars WHERE id = ?", [
+      carId,
+    ]);
+    const car = cars[0];
+    if (!car) {
+      return res.status(404).json({ message: "Vetura nuk u gjet" });
+    }
+    if (Number(car.sold_out) === 1) {
+      return res.status(409).json({ message: "Nuk mund të prenotohet test-drive për sold out." });
+    }
+
+    await pool.query(
+      `INSERT INTO test_drive_requests (
+        car_id, requester_user_id, requester_name, requester_email, requester_phone,
+        preferred_date, preferred_time, notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        carId,
+        req.user.id,
+        value.requester_name,
+        String(value.requester_email).trim().toLowerCase(),
+        value.requester_phone || null,
+        value.preferred_date,
+        value.preferred_time || null,
+        value.notes || null,
+      ]
+    );
+
+    return res.status(201).json({
+      message: "Kërkesa për test-drive u regjistrua me sukses.",
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
   }
 });
 

@@ -20,6 +20,7 @@ export default function Admin() {
   const [stats, setStats] = useState(null);
   const [contacts, setContacts] = useState([]);
   const [purchases, setPurchases] = useState([]);
+  const [testDrives, setTestDrives] = useState([]);
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -42,16 +43,18 @@ export default function Admin() {
 
     (async () => {
       try {
-        const [statsRes, contactRes, purchaseRes, carsRes] = await Promise.all([
+        const [statsRes, contactRes, purchaseRes, testDriveRes, carsRes] = await Promise.all([
           api.get("/api/admin/stats"),
           api.get("/api/admin/contacts"),
           api.get("/api/admin/purchases"),
+          api.get("/api/admin/test-drives"),
           api.get("/api/cars"),
         ]);
         if (!cancelled) {
           setStats(statsRes.data);
           setContacts(Array.isArray(contactRes.data) ? contactRes.data : []);
           setPurchases(Array.isArray(purchaseRes.data) ? purchaseRes.data : []);
+          setTestDrives(Array.isArray(testDriveRes.data) ? testDriveRes.data : []);
           const list = Array.isArray(carsRes.data?.data)
             ? carsRes.data.data
             : Array.isArray(carsRes.data)
@@ -128,6 +131,23 @@ export default function Admin() {
     }
   };
 
+  const handleUpdateTestDriveStatus = async (requestId, nextStatus) => {
+    setActionError("");
+    try {
+      await api.patch(`/api/admin/test-drives/${requestId}/status`, {
+        status: nextStatus,
+      });
+      setTestDrives((prev) =>
+        prev.map((r) => (r.id === requestId ? { ...r, status: nextStatus } : r))
+      );
+      showToast("Statusi i test-drive u përditësua.", "success");
+    } catch (e) {
+      const msg = e.response?.data?.message || e.message || "Përditësimi i statusit dështoi.";
+      setActionError(msg);
+      showToast(msg, "error");
+    }
+  };
+
   const openConfirm = (type, car) => {
     setConfirmState({ open: true, type, car });
   };
@@ -184,7 +204,88 @@ export default function Admin() {
               <span className="stat-value">{stats.purchases ?? 0}</span>
               <span className="stat-label">Blerje (MySQL)</span>
             </div>
+            <div className="stat-card">
+              <span className="stat-value">{stats.testDrives ?? 0}</span>
+              <span className="stat-label">Test-drive requests</span>
+            </div>
           </div>
+        )}
+
+        <h2 className="spec-section-title" style={{ marginTop: "2rem" }}>
+          Test-drive requests
+        </h2>
+        <p className="muted small" style={{ marginBottom: "1rem" }}>
+          Kërkesat për test-drive me datë/orë të preferuar dhe status menaxhimi.
+        </p>
+        {testDrives.length > 0 ? (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Kur</th>
+                  <th>Vetura</th>
+                  <th>Kërkuesi</th>
+                  <th>Preferenca</th>
+                  <th>Statusi</th>
+                  <th>Veprime</th>
+                </tr>
+              </thead>
+              <tbody>
+                {testDrives.map((t) => (
+                  <tr key={t.id}>
+                    <td>{formatTime(t.created_at)}</td>
+                    <td>
+                      {t.car_name || `Car #${t.car_id}`}
+                      {t.car_year ? ` (${t.car_year})` : ""}
+                    </td>
+                    <td className="cell-wrap">
+                      <strong>{t.requester_name}</strong>
+                      <br />
+                      <span className="muted">{t.requester_email}</span>
+                      {t.requester_phone ? (
+                        <>
+                          <br />
+                          <span className="muted">{t.requester_phone}</span>
+                        </>
+                      ) : null}
+                    </td>
+                    <td className="cell-wrap">
+                      <strong>{t.preferred_date ? String(t.preferred_date).slice(0, 10) : "—"}</strong>
+                      {t.preferred_time ? (
+                        <>
+                          <br />
+                          <span className="muted">{t.preferred_time}</span>
+                        </>
+                      ) : null}
+                      {t.notes ? (
+                        <>
+                          <br />
+                          <span className="muted">{t.notes}</span>
+                        </>
+                      ) : null}
+                    </td>
+                    <td>
+                      <strong>{t.status || "pending"}</strong>
+                    </td>
+                    <td>
+                      <select
+                        className="field-input"
+                        value={t.status || "pending"}
+                        onChange={(e) => handleUpdateTestDriveStatus(t.id, e.target.value)}
+                      >
+                        <option value="pending">pending</option>
+                        <option value="scheduled">scheduled</option>
+                        <option value="completed">completed</option>
+                        <option value="cancelled">cancelled</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="muted">Nuk ka kërkesa test-drive ende.</p>
         )}
 
         <h2 className="spec-section-title" style={{ marginTop: "2rem" }}>

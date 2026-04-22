@@ -15,11 +15,20 @@ router.get("/stats", async (req, res) => {
     );
     const [[carRow]] = await pool.query("SELECT COUNT(*) AS cars FROM cars");
     let purchaseCount = 0;
+    let testDriveCount = 0;
     try {
       const [[purchaseRow]] = await pool.query(
         "SELECT COUNT(*) AS purchases FROM purchases"
       );
       purchaseCount = purchaseRow.purchases;
+    } catch (err) {
+      if (err.code !== "ER_NO_SUCH_TABLE") throw err;
+    }
+    try {
+      const [[testDriveRow]] = await pool.query(
+        "SELECT COUNT(*) AS testDrives FROM test_drive_requests"
+      );
+      testDriveCount = testDriveRow.testDrives;
     } catch (err) {
       if (err.code !== "ER_NO_SUCH_TABLE") throw err;
     }
@@ -31,6 +40,7 @@ router.get("/stats", async (req, res) => {
       users: userRow.users,
       cars: carRow.cars,
       purchases: purchaseCount,
+      testDrives: testDriveCount,
       contactsMongo: contactCount,
     });
   } catch (err) {
@@ -78,6 +88,66 @@ router.get("/purchases", async (req, res) => {
   } catch (err) {
     if (err.code === "ER_NO_SUCH_TABLE") {
       return res.json([]);
+    }
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+router.get("/test-drives", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT
+        t.id,
+        t.car_id,
+        c.name AS car_name,
+        c.year AS car_year,
+        t.requester_name,
+        t.requester_email,
+        t.requester_phone,
+        t.preferred_date,
+        t.preferred_time,
+        t.notes,
+        t.status,
+        t.created_at
+      FROM test_drive_requests t
+      LEFT JOIN cars c ON c.id = t.car_id
+      ORDER BY t.created_at DESC`
+    );
+    return res.json(rows);
+  } catch (err) {
+    if (err.code === "ER_NO_SUCH_TABLE") {
+      return res.json([]);
+    }
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+router.patch("/test-drives/:id/status", async (req, res) => {
+  const allowed = new Set(["pending", "scheduled", "completed", "cancelled"]);
+  const id = Number(req.params.id);
+  const status = String(req.body?.status || "").trim().toLowerCase();
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ message: "Invalid test-drive id." });
+  }
+  if (!allowed.has(status)) {
+    return res.status(400).json({
+      message: "Status must be one of: pending, scheduled, completed, cancelled.",
+    });
+  }
+
+  try {
+    const [result] = await pool.query(
+      "UPDATE test_drive_requests SET status = ? WHERE id = ?",
+      [status, id]
+    );
+    if (!result.affectedRows) {
+      return res.status(404).json({ message: "Test-drive request not found." });
+    }
+    return res.json({ message: "Statusi u përditësua me sukses.", status });
+  } catch (err) {
+    if (err.code === "ER_NO_SUCH_TABLE") {
+      return res.status(404).json({ message: "Test-drive storage not initialized." });
     }
     return res.status(500).json({ message: err.message });
   }
