@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import PageLayout from "../components/PageLayout";
 import api from "../api";
+import { useAppToast } from "../components/ui/AppToastProvider";
 
 function formatEuro(amount) {
   const n = typeof amount === "number" ? amount : Number(amount);
@@ -36,6 +37,7 @@ export default function BuyCar() {
   const [tradeMileage, setTradeMileage] = useState("");
   const [tradeValue, setTradeValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { showToast } = useAppToast();
 
   useEffect(() => {
     let cancelled = false;
@@ -64,10 +66,42 @@ export default function BuyCar() {
     return { carPrice, trade: Number.isFinite(trade) ? trade : 0, amountToAdd };
   }, [car?.price, tradeValue, useTradeIn]);
 
+  const validation = useMemo(() => {
+    const issues = {};
+    if (!buyerName.trim() || buyerName.trim().length < 2) {
+      issues.buyerName = "Emri duhet të ketë të paktën 2 karaktere.";
+    }
+    if (!/\S+@\S+\.\S+/.test(buyerEmail.trim())) {
+      issues.buyerEmail = "Email i pavlefshëm.";
+    }
+    if (useTradeIn) {
+      if (!tradeCar.trim()) issues.tradeCar = "Shkruaj veturën aktuale.";
+      const year = Number(tradeYear);
+      if (!Number.isInteger(year) || year < 1950 || year > new Date().getFullYear() + 1) {
+        issues.tradeYear = "Viti i trade-in nuk është valid.";
+      }
+      const mileage = Number(tradeMileage);
+      if (!Number.isFinite(mileage) || mileage < 0) {
+        issues.tradeMileage = "Kilometrazhi duhet >= 0.";
+      }
+      const value = Number(tradeValue);
+      if (!Number.isFinite(value) || value < 0) {
+        issues.tradeValue = "Vlera e trade-in duhet >= 0.";
+      }
+    }
+    return issues;
+  }, [buyerName, buyerEmail, useTradeIn, tradeCar, tradeYear, tradeMileage, tradeValue]);
+
+  const isValid = Object.keys(validation).length === 0;
+
   const onSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
+    if (!isValid) {
+      setError("Ju lutem korrigjoni fushat e formularit.");
+      return;
+    }
 
     const payload = {
       buyer_name: buyerName.trim(),
@@ -90,9 +124,11 @@ export default function BuyCar() {
     try {
       const { data } = await api.post(`/api/cars/${id}/purchase`, payload);
       setSuccess(data?.message || "Blerja u regjistrua me sukses.");
+      showToast("Blerja u regjistrua me sukses.", "success");
       setTimeout(() => navigate(`/cars/${id}`), 1200);
     } catch (e) {
       setError(e.response?.data?.message || e.message || "Blerja dështoi.");
+      showToast("Blerja dështoi.", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -141,6 +177,9 @@ export default function BuyCar() {
                     onChange={(e) => setBuyerName(e.target.value)}
                     required
                   />
+                  {validation.buyerName ? (
+                    <span className="error-text">{validation.buyerName}</span>
+                  ) : null}
                 </label>
                 <label className="field-label">
                   Email
@@ -151,6 +190,9 @@ export default function BuyCar() {
                     onChange={(e) => setBuyerEmail(e.target.value)}
                     required
                   />
+                  {validation.buyerEmail ? (
+                    <span className="error-text">{validation.buyerEmail}</span>
+                  ) : null}
                 </label>
                 <label className="field-label">
                   Telefoni
@@ -194,6 +236,9 @@ export default function BuyCar() {
                         onChange={(e) => setTradeCar(e.target.value)}
                         required={useTradeIn}
                       />
+                      {validation.tradeCar ? (
+                        <span className="error-text">{validation.tradeCar}</span>
+                      ) : null}
                     </label>
                     <label className="field-label">
                       Viti i veturës ekzistuese
@@ -206,6 +251,9 @@ export default function BuyCar() {
                         onChange={(e) => setTradeYear(e.target.value)}
                         required={useTradeIn}
                       />
+                      {validation.tradeYear ? (
+                        <span className="error-text">{validation.tradeYear}</span>
+                      ) : null}
                     </label>
                     <label className="field-label">
                       Kilometrazhi (km)
@@ -217,6 +265,9 @@ export default function BuyCar() {
                         onChange={(e) => setTradeMileage(e.target.value)}
                         required={useTradeIn}
                       />
+                      {validation.tradeMileage ? (
+                        <span className="error-text">{validation.tradeMileage}</span>
+                      ) : null}
                     </label>
                     <label className="field-label">
                       Vlera e vlerësuar e trade-in (EUR)
@@ -229,6 +280,9 @@ export default function BuyCar() {
                         onChange={(e) => setTradeValue(e.target.value)}
                         required={useTradeIn}
                       />
+                      {validation.tradeValue ? (
+                        <span className="error-text">{validation.tradeValue}</span>
+                      ) : null}
                     </label>
                   </>
                 ) : null}
@@ -252,7 +306,11 @@ export default function BuyCar() {
                   />
                 </label>
 
-                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isSubmitting || !isValid}
+                >
                   {isSubmitting ? "Duke regjistruar..." : "Përfundo blerjen"}
                 </button>
               </form>

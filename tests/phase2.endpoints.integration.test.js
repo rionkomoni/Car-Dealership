@@ -110,5 +110,64 @@ describe("Phase 2 endpoint coverage", () => {
     expect(Array.isArray(response.body)).toBe(true);
     expect(response.body[0].car_name).toBe("Mercedes GLE");
   });
+
+  test("GET /api/manager/trade-ins/pending returns pending items for manager role", async () => {
+    const managerToken = signToken({
+      id: 10,
+      role: "manager",
+      email: "manager@gmail.com",
+    });
+
+    mockQuery.mockResolvedValueOnce([
+      [
+        {
+          id: 4,
+          car_id: 2,
+          car_name: "Audi Q8",
+          trade_in_car: "VW Golf",
+          trade_in_status: "pending",
+        },
+      ],
+    ]);
+
+    const response = await request(app)
+      .get("/api/manager/trade-ins/pending")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(response.status).toBe(200);
+    expect(Array.isArray(response.body)).toBe(true);
+    expect(response.body[0].trade_in_status).toBe("pending");
+  });
+
+  test("PATCH /api/manager/trade-ins/:purchaseId/decision updates rejected review", async () => {
+    const managerToken = signToken({
+      id: 10,
+      role: "manager",
+      email: "manager@gmail.com",
+    });
+
+    mockQuery
+      .mockResolvedValueOnce([
+        [
+          {
+            id: 4,
+            car_price: 30000,
+            trade_in_value: 5000,
+            trade_in_status: "pending",
+            trade_in_car: "VW Golf",
+          },
+        ],
+      ])
+      .mockResolvedValueOnce([{}]);
+
+    const response = await request(app)
+      .patch("/api/manager/trade-ins/4/decision")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ decision: "rejected", review_note: "Trade-in value too optimistic" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.trade_in_status).toBe("rejected");
+    expect(response.body.amount_to_add).toBe(30000);
+  });
 });
 

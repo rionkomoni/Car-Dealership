@@ -8,6 +8,11 @@ module.exports = [
     router: require("../../routes/adminRoutes"),
   },
   {
+    name: "reporting-manager",
+    basePath: "/api/manager",
+    router: require("../../routes/managerRoutes"),
+  },
+  {
     name: "reporting-carLogs",
     basePath: "/api/car-logs",
     router: require("../../routes/carLogRoutes"),

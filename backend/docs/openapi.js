@@ -11,6 +11,7 @@ module.exports = {
     { name: "Auth" },
     { name: "Cars" },
     { name: "Admin" },
+    { name: "Manager" },
   ],
   components: {
     securitySchemes: {
@@ -241,6 +242,63 @@ module.exports = {
           200: { description: "Purchase list" },
           401: { description: "Unauthorized" },
           403: { description: "Admin access required" },
+        },
+      },
+    },
+    "/api/v1/manager/overview": {
+      get: {
+        tags: ["Manager"],
+        summary: "Manager operational overview (manager/admin JWT required)",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: "Overview metrics and latest purchases" },
+          401: { description: "Unauthorized" },
+          403: { description: "Manager or admin access required" },
+        },
+      },
+    },
+    "/api/v1/manager/trade-ins/pending": {
+      get: {
+        tags: ["Manager"],
+        summary: "List pending trade-in reviews (manager/admin JWT required)",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: "Pending trade-ins list" },
+          401: { description: "Unauthorized" },
+          403: { description: "Manager or admin access required" },
+        },
+      },
+    },
+    "/api/v1/manager/trade-ins/{purchaseId}/decision": {
+      patch: {
+        tags: ["Manager"],
+        summary: "Approve or reject trade-in by purchase id",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "purchaseId", in: "path", required: true, schema: { type: "integer" } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["decision"],
+                properties: {
+                  decision: { type: "string", enum: ["approved", "rejected"] },
+                  review_note: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: "Trade-in decision saved" },
+          400: { description: "Bad request" },
+          401: { description: "Unauthorized" },
+          403: { description: "Manager or admin access required" },
+          404: { description: "Purchase not found" },
+          409: { description: "Trade-in already reviewed" },
         },
       },
     },

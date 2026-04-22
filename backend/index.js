@@ -58,6 +58,28 @@ async function ensureMysqlDatabase() {
   await conn.end();
 }
 
+async function ensurePurchaseColumns() {
+  const fragments = [
+    "ADD COLUMN trade_in_status VARCHAR(20) NOT NULL DEFAULT 'pending'",
+    "ADD COLUMN manager_review_note TEXT NULL",
+    "ADD COLUMN manager_reviewed_by INT NULL",
+    "ADD COLUMN manager_reviewed_at TIMESTAMP NULL",
+  ];
+
+  for (const fragment of fragments) {
+    try {
+      await pool.query(`ALTER TABLE purchases ${fragment}`);
+    } catch (err) {
+      const dup =
+        err.code === "ER_DUP_FIELDNAME" ||
+        (err.message && err.message.includes("Duplicate column name"));
+      if (!dup) {
+        throw err;
+      }
+    }
+  }
+}
+
 const startServer = async () => {
   let startupStep = "initialization";
   try {
@@ -112,11 +134,17 @@ const startServer = async () => {
         trade_in_year INT NULL,
         trade_in_mileage_km INT NULL,
         trade_in_value DECIMAL(10,2) NOT NULL DEFAULT 0,
+        trade_in_status VARCHAR(20) NOT NULL DEFAULT 'pending',
         amount_to_add DECIMAL(10,2) NOT NULL,
         notes TEXT NULL,
+        manager_review_note TEXT NULL,
+        manager_reviewed_by INT NULL,
+        manager_reviewed_at TIMESTAMP NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    startupStep = "ensure purchases columns";
+    await ensurePurchaseColumns();
 
     startupStep = "ensure cars spec columns";
     await ensureCarSpecColumns(pool);

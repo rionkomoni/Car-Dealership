@@ -17,7 +17,7 @@ const serviceRegistry = {
   reporting: {
     type: "module",
     doc: "backend/modules/reporting/README.md",
-    routeBases: ["/api/admin", "/api/car-logs"],
+    routeBases: ["/api/admin", "/api/manager", "/api/car-logs"],
   },
 };
 

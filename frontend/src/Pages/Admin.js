@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import api from "../api";
 import { isAdmin } from "../authHelpers";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
+import { useAppToast } from "../components/ui/AppToastProvider";
 
 function formatTime(iso) {
   if (!iso) return "—";
@@ -23,6 +25,12 @@ export default function Admin() {
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const [busyCarId, setBusyCarId] = useState(null);
+  const [confirmState, setConfirmState] = useState({
+    open: false,
+    type: null,
+    car: null,
+  });
+  const { showToast } = useAppToast();
 
   useEffect(() => {
     if (!isAdmin()) {
@@ -93,24 +101,49 @@ export default function Admin() {
       setCars((prev) =>
         prev.map((x) => (x.id === car.id ? { ...x, sold_out: next ? 1 : 0 } : x))
       );
+      showToast(
+        next ? `${car.name} u shënua sold out.` : `${car.name} u shënua available.`,
+        "success"
+      );
     } catch (e) {
       setActionError(e.response?.data?.message || e.message || "Veprimi dështoi.");
+      showToast("Veprimi dështoi.", "error");
     } finally {
       setBusyCarId(null);
     }
   };
 
   const handleDeleteCar = async (car) => {
-    if (!window.confirm(`Të fshihet "${car.name}"?`)) return;
     setBusyCarId(car.id);
     setActionError("");
     try {
       await api.delete(`/api/cars/${car.id}`);
       setCars((prev) => prev.filter((x) => x.id !== car.id));
+      showToast(`${car.name} u fshi me sukses.`, "success");
     } catch (e) {
       setActionError(e.response?.data?.message || e.message || "Fshirja dështoi.");
+      showToast("Fshirja dështoi.", "error");
     } finally {
       setBusyCarId(null);
+    }
+  };
+
+  const openConfirm = (type, car) => {
+    setConfirmState({ open: true, type, car });
+  };
+
+  const closeConfirm = () => {
+    setConfirmState({ open: false, type: null, car: null });
+  };
+
+  const onConfirmAction = async () => {
+    const { type, car } = confirmState;
+    closeConfirm();
+    if (!car) return;
+    if (type === "delete") {
+      await handleDeleteCar(car);
+    } else if (type === "soldout") {
+      await handleToggleSoldOut(car);
     }
   };
 
@@ -298,7 +331,7 @@ export default function Admin() {
                           type="button"
                           className="btn btn-ghost"
                           disabled={busy}
-                          onClick={() => handleToggleSoldOut(car)}
+                          onClick={() => openConfirm("soldout", car)}
                           style={{ marginRight: "0.5rem" }}
                         >
                           {sold ? "Vendos available" : "Vendos sold out"}
@@ -307,7 +340,7 @@ export default function Admin() {
                           type="button"
                           className="btn btn-danger"
                           disabled={busy}
-                          onClick={() => handleDeleteCar(car)}
+                          onClick={() => openConfirm("delete", car)}
                         >
                           Fshi
                         </button>
@@ -321,6 +354,23 @@ export default function Admin() {
         ) : (
           <p className="muted">Nuk ka makina për menaxhim.</p>
         )}
+        <ConfirmDialog
+          open={confirmState.open}
+          title={
+            confirmState.type === "delete"
+              ? "Konfirmo fshirjen"
+              : "Konfirmo ndryshimin e statusit"
+          }
+          message={
+            confirmState.type === "delete"
+              ? `A je i sigurt që do ta fshish "${confirmState.car?.name}"?`
+              : `A je i sigurt që do ta ndryshosh statusin e "${confirmState.car?.name}"?`
+          }
+          confirmText={confirmState.type === "delete" ? "Fshi" : "Ndrysho"}
+          cancelText="Anulo"
+          onCancel={closeConfirm}
+          onConfirm={onConfirmAction}
+        />
       </section>
     </PageLayout>
   );

@@ -1,37 +1,50 @@
 const bcrypt = require("bcryptjs");
 
 /**
- * Ensures an admin account exists (from ADMIN_EMAIL / ADMIN_PASSWORD in .env).
- * Creates the user if missing; promotes existing user with that email to admin.
+ * Ensures privileged accounts exist:
+ * - admin (ADMIN_EMAIL / ADMIN_PASSWORD)
+ * - manager (MANAGER_EMAIL / MANAGER_PASSWORD)
  */
 async function seedAdminUser(pool) {
-  const rawEmail = process.env.ADMIN_EMAIL || "admin@gmail.com";
-  const email = String(rawEmail).trim().toLowerCase();
-  const password = process.env.ADMIN_PASSWORD || "12345678";
-  const hash = await bcrypt.hash(password, 10);
+  async function upsertPrivilegedUser({ name, email, password, role }) {
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const hash = await bcrypt.hash(password, 10);
 
-  const [rows] = await pool.query(
-    "SELECT id, role FROM users WHERE email = ?",
-    [email]
-  );
+    const [rows] = await pool.query(
+      "SELECT id, role FROM users WHERE email = ?",
+      [normalizedEmail]
+    );
 
-  if (rows.length === 0) {
-    await pool.query(
-      "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
-      ["Administrator", email, hash, "admin"]
-    );
-    console.log(
-      `Admin user created: ${email} (password from ADMIN_PASSWORD in .env)`
-    );
-    return;
+    if (rows.length === 0) {
+      await pool.query(
+        "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
+        [name, normalizedEmail, hash, role]
+      );
+      console.log(`${role} user created: ${normalizedEmail}`);
+      return;
+    }
+
+    await pool.query("UPDATE users SET role = ?, password = ? WHERE id = ?", [
+      role,
+      hash,
+      rows[0].id,
+    ]);
+    console.log(`${role} user synced: ${normalizedEmail} (role + password refreshed)`);
   }
 
-  await pool.query("UPDATE users SET role = ?, password = ? WHERE id = ?", [
-    "admin",
-    hash,
-    rows[0].id,
-  ]);
-  console.log(`Admin user synced: ${email} (role + password refreshed)`);
+  await upsertPrivilegedUser({
+    name: "Administrator",
+    email: process.env.ADMIN_EMAIL || "admin@gmail.com",
+    password: process.env.ADMIN_PASSWORD || "12345678",
+    role: "admin",
+  });
+
+  await upsertPrivilegedUser({
+    name: "Manager",
+    email: process.env.MANAGER_EMAIL || "manager@gmail.com",
+    password: process.env.MANAGER_PASSWORD || "12345678",
+    role: "manager",
+  });
 }
 
 module.exports = { seedAdminUser };

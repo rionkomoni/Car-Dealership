@@ -12,6 +12,15 @@ Numërues për përdorues/vetura/kontakte, inbox kontimesh për admin, histori l
 |--------|-------|-----------|
 | GET | `/api/admin/stats` | `users`, `cars`, `contactsMongo` |
 | GET | `/api/admin/contacts` | Lista e mesazheve (Mongo) |
+| GET | `/api/admin/purchases` | Lista e blerjeve dhe trade-in |
+
+### Manager — `/api/manager` (kërkon JWT + rol `manager` ose `admin`)
+
+| Metoda | Rruga | Përshkrim |
+|--------|-------|-----------|
+| GET | `/api/manager/overview` | Overview operativ: total/sold/available/purchases + 5 blerjet e fundit |
+| GET | `/api/manager/trade-ins/pending` | Lista e trade-ins në pritje për review |
+| PATCH | `/api/manager/trade-ins/:purchaseId/decision` | Vendim `approved/rejected` + shënim menaxheri |
 
 ### Logje — `/api/car-logs` (admin)
 
@@ -22,6 +31,7 @@ Numërues për përdorues/vetura/kontakte, inbox kontimesh për admin, histori l
 ## Skedarë kryesorë
 
 - `backend/routes/adminRoutes.js`
+- `backend/routes/managerRoutes.js`
 - `backend/controllers/adminController.js`
 - `backend/services/adminService.js`
 - `backend/routes/carLogRoutes.js`

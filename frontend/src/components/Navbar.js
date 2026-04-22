@@ -53,7 +53,9 @@ function Navbar() {
   const token = useSelector((s) => s.auth.token);
   const user = useSelector((s) => s.auth.user);
   const userName = user?.name;
-  const admin = user?.role === "admin";
+  const role = user?.role;
+  const admin = role === "admin";
+  const manager = role === "manager";
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -146,6 +148,15 @@ function Navbar() {
                   Logs
                 </Link>
               </>
+            ) : manager ? (
+              <>
+                <Link to="/manager" className="nav-link nav-admin" onClick={closeMenu}>
+                  Manager
+                </Link>
+                <Link to="/logs" className="nav-link" onClick={closeMenu}>
+                  Logs
+                </Link>
+              </>
             ) : (
               <span className="nav-link" aria-disabled>
                 User mode
@@ -158,6 +169,11 @@ function Navbar() {
                   <span className="nav-role-badge" title="Administrator">
                     {" "}
                     · Admin
+                  </span>
+                ) : manager ? (
+                  <span className="nav-role-badge" title="Manager">
+                    {" "}
+                    · Manager
                   </span>
                 ) : null}
               </span>

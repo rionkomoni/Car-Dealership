@@ -353,8 +353,8 @@ router.post("/:id/purchase", auth, async (req, res) => {
       `INSERT INTO purchases (
         car_id, buyer_user_id, buyer_name, buyer_email, buyer_phone, payment_method,
         car_price, trade_in_car, trade_in_year, trade_in_mileage_km, trade_in_value,
-        amount_to_add, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        trade_in_status, amount_to_add, notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         carId,
         req.user.id,
@@ -367,6 +367,7 @@ router.post("/:id/purchase", auth, async (req, res) => {
         tradeInVehicle?.year || null,
         tradeInVehicle?.mileageKm || null,
         tradeValue,
+        tradeInVehicle ? "pending" : "approved",
         amountToAdd,
         value.notes || null,
       ]
