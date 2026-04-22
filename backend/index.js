@@ -80,6 +80,222 @@ async function ensurePurchaseColumns() {
   }
 }
 
+async function constraintExists(tableName, constraintName, type) {
+  const [rows] = await pool.query(
+    `SELECT 1
+     FROM information_schema.TABLE_CONSTRAINTS
+     WHERE CONSTRAINT_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND CONSTRAINT_NAME = ?
+       AND CONSTRAINT_TYPE = ?
+     LIMIT 1`,
+    [tableName, constraintName, type]
+  );
+  return rows.length > 0;
+}
+
+async function indexExists(tableName, indexName) {
+  const [rows] = await pool.query(
+    `SELECT 1
+     FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND INDEX_NAME = ?
+     LIMIT 1`,
+    [tableName, indexName]
+  );
+  return rows.length > 0;
+}
+
+async function ensureForeignKey(tableName, constraintName, ddlSql) {
+  if (await constraintExists(tableName, constraintName, "FOREIGN KEY")) return;
+  await pool.query(ddlSql);
+}
+
+async function ensureCheck(tableName, constraintName, ddlSql) {
+  try {
+    if (await constraintExists(tableName, constraintName, "CHECK")) return;
+    await pool.query(ddlSql);
+  } catch (err) {
+    // Some MySQL/MariaDB variants handle CHECK differently; keep startup resilient.
+    console.warn(`CHECK constraint skipped (${constraintName}): ${err.message}`);
+  }
+}
+
+async function ensureIndex(tableName, indexName, ddlSql) {
+  if (await indexExists(tableName, indexName)) return;
+  await pool.query(ddlSql);
+}
+
+async function ensureProcedure(name, createSql) {
+  const [rows] = await pool.query(
+    `SELECT 1
+     FROM information_schema.ROUTINES
+     WHERE ROUTINE_SCHEMA = DATABASE()
+       AND ROUTINE_NAME = ?
+       AND ROUTINE_TYPE = 'PROCEDURE'
+     LIMIT 1`,
+    [name]
+  );
+  if (rows.length > 0) {
+    await pool.query(`DROP PROCEDURE \`${name}\``);
+  }
+  await pool.query(createSql);
+}
+
+async function ensureTrigger(name, createSql) {
+  const [rows] = await pool.query(
+    `SELECT 1
+     FROM information_schema.TRIGGERS
+     WHERE TRIGGER_SCHEMA = DATABASE()
+       AND TRIGGER_NAME = ?
+     LIMIT 1`,
+    [name]
+  );
+  if (rows.length > 0) {
+    await pool.query(`DROP TRIGGER \`${name}\``);
+  }
+  await pool.query(createSql);
+}
+
+async function ensureAdvancedRelationalModel() {
+  // CHECK constraints (business/data integrity).
+  await ensureCheck(
+    "users",
+    "chk_users_role",
+    "ALTER TABLE users ADD CONSTRAINT chk_users_role CHECK (role IN ('client','manager','admin'))"
+  );
+  await ensureCheck(
+    "cars",
+    "chk_cars_price_positive",
+    "ALTER TABLE cars ADD CONSTRAINT chk_cars_price_positive CHECK (price > 0)"
+  );
+  await ensureCheck(
+    "cars",
+    "chk_cars_year_range",
+    "ALTER TABLE cars ADD CONSTRAINT chk_cars_year_range CHECK (year BETWEEN 1950 AND 2100)"
+  );
+  await ensureCheck(
+    "cars",
+    "chk_cars_sold_out_bool",
+    "ALTER TABLE cars ADD CONSTRAINT chk_cars_sold_out_bool CHECK (sold_out IN (0,1))"
+  );
+  await ensureCheck(
+    "purchases",
+    "chk_purchases_tradein_status",
+    "ALTER TABLE purchases ADD CONSTRAINT chk_purchases_tradein_status CHECK (trade_in_status IN ('pending','approved','rejected'))"
+  );
+  await ensureCheck(
+    "purchases",
+    "chk_purchases_tradein_non_negative",
+    "ALTER TABLE purchases ADD CONSTRAINT chk_purchases_tradein_non_negative CHECK (trade_in_value >= 0)"
+  );
+  await ensureCheck(
+    "purchases",
+    "chk_purchases_amount_non_negative",
+    "ALTER TABLE purchases ADD CONSTRAINT chk_purchases_amount_non_negative CHECK (amount_to_add >= 0)"
+  );
+
+  // Foreign keys.
+  await ensureForeignKey(
+    "cars",
+    "fk_cars_created_by",
+    "ALTER TABLE cars ADD CONSTRAINT fk_cars_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE"
+  );
+  await ensureForeignKey(
+    "purchases",
+    "fk_purchases_car_id",
+    "ALTER TABLE purchases ADD CONSTRAINT fk_purchases_car_id FOREIGN KEY (car_id) REFERENCES cars(id) ON DELETE CASCADE ON UPDATE CASCADE"
+  );
+  await ensureForeignKey(
+    "purchases",
+    "fk_purchases_buyer_user_id",
+    "ALTER TABLE purchases ADD CONSTRAINT fk_purchases_buyer_user_id FOREIGN KEY (buyer_user_id) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE"
+  );
+  await ensureForeignKey(
+    "purchases",
+    "fk_purchases_manager_reviewed_by",
+    "ALTER TABLE purchases ADD CONSTRAINT fk_purchases_manager_reviewed_by FOREIGN KEY (manager_reviewed_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE"
+  );
+
+  // Optimized indexes.
+  await ensureIndex(
+    "cars",
+    "idx_cars_sold_out_year",
+    "CREATE INDEX idx_cars_sold_out_year ON cars (sold_out, year)"
+  );
+  await ensureIndex(
+    "cars",
+    "idx_cars_price",
+    "CREATE INDEX idx_cars_price ON cars (price)"
+  );
+  await ensureIndex(
+    "purchases",
+    "idx_purchases_created_at",
+    "CREATE INDEX idx_purchases_created_at ON purchases (created_at)"
+  );
+  await ensureIndex(
+    "purchases",
+    "idx_purchases_status_created",
+    "CREATE INDEX idx_purchases_status_created ON purchases (trade_in_status, created_at)"
+  );
+  await ensureIndex(
+    "purchases",
+    "idx_purchases_buyer_email",
+    "CREATE INDEX idx_purchases_buyer_email ON purchases (buyer_email)"
+  );
+}
+
+async function ensureDbProgrammability() {
+  await ensureProcedure(
+    "sp_tradein_review_queue",
+    `CREATE PROCEDURE sp_tradein_review_queue()
+     BEGIN
+       SELECT
+         id, car_id, buyer_name, buyer_email, trade_in_car, trade_in_year,
+         trade_in_mileage_km, trade_in_value, amount_to_add, created_at
+       FROM purchases
+       WHERE trade_in_car IS NOT NULL
+         AND trade_in_status = 'pending'
+       ORDER BY created_at DESC;
+     END`
+  );
+
+  await ensureTrigger(
+    "trg_purchases_before_insert",
+    `CREATE TRIGGER trg_purchases_before_insert
+     BEFORE INSERT ON purchases
+     FOR EACH ROW
+     BEGIN
+       SET NEW.buyer_email = LOWER(TRIM(NEW.buyer_email));
+       IF NEW.trade_in_value IS NULL THEN
+         SET NEW.trade_in_value = 0;
+       END IF;
+       IF NEW.amount_to_add IS NULL OR NEW.amount_to_add < 0 THEN
+         SET NEW.amount_to_add = GREATEST(0, NEW.car_price - IFNULL(NEW.trade_in_value, 0));
+       END IF;
+       IF NEW.trade_in_car IS NULL OR TRIM(NEW.trade_in_car) = '' THEN
+         SET NEW.trade_in_status = 'approved';
+       END IF;
+     END`
+  );
+
+  await ensureTrigger(
+    "trg_purchases_before_update",
+    `CREATE TRIGGER trg_purchases_before_update
+     BEFORE UPDATE ON purchases
+     FOR EACH ROW
+     BEGIN
+       IF NEW.trade_in_status = 'rejected' THEN
+         SET NEW.amount_to_add = NEW.car_price;
+       END IF;
+       IF NEW.amount_to_add < 0 THEN
+         SET NEW.amount_to_add = 0;
+       END IF;
+     END`
+  );
+}
+
 const startServer = async () => {
   let startupStep = "initialization";
   try {
@@ -145,6 +361,10 @@ const startServer = async () => {
     `);
     startupStep = "ensure purchases columns";
     await ensurePurchaseColumns();
+    startupStep = "ensure db constraints and indexes";
+    await ensureAdvancedRelationalModel();
+    startupStep = "ensure db procedures and triggers";
+    await ensureDbProgrammability();
 
     startupStep = "ensure cars spec columns";
     await ensureCarSpecColumns(pool);

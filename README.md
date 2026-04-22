@@ -12,6 +12,17 @@ Projekti lidh **Fazën I** (teknologjitë dhe integrimi) me **Fazën II** (arkit
 - Menaxhim admin: `PATCH /api/cars/:id/sold-out`, `GET /api/admin/stats`, `GET /api/admin/purchases`.
 - Unit + integration tests në `tests/` (auth middleware, health/docs, phase2 endpoints).
 
+## Faza 7 - Modelimi i bazës së të dhënave
+
+- ERD me relacione 1:N dhe 1:1 (`users`, `cars`, `purchases`).
+- Constraints të avancuara: `CHECK`, `DEFAULT`, `UNIQUE`, `FOREIGN KEY`.
+- `ON DELETE CASCADE` për marrëdhënien `cars -> purchases`.
+- Indekse të optimizuara për listing, filtering dhe manager review queue.
+- Stored procedure + triggers për logjikë në nivel DB.
+- Modelim NoSQL me embedded entities + strategji denormalizimi/shardimi/konsistence.
+
+Dokumenti i plotë: [docs/database-modeling-phase7.md](docs/database-modeling-phase7.md)
+
 ## 3. Frameworks & Teknologjitë (përputhje me rubrikën)
 
 | Kërkesë | Si implementohet në këtë projekt |
