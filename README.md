@@ -23,6 +23,15 @@ Projekti lidh **Fazën I** (teknologjitë dhe integrimi) me **Fazën II** (arkit
 
 Dokumenti i plotë: [docs/database-modeling-phase7.md](docs/database-modeling-phase7.md)
 
+## Faza 8 - Diagramat Mbështetëse të Modelit
+
+- Component Diagram
+- Sequence Diagram për API calls
+- Deployment Diagram
+- State Diagram për lifecycle dinamik të veturës
+
+Dokumenti i plotë: [docs/supporting-diagrams-phase8.md](docs/supporting-diagrams-phase8.md)
+
 ## 3. Frameworks & Teknologjitë (përputhje me rubrikën)
 
 | Kërkesë | Si implementohet në këtë projekt |
