@@ -43,25 +43,41 @@ export default function Admin() {
 
     (async () => {
       try {
-        const [statsRes, contactRes, purchaseRes, testDriveRes, carsRes] = await Promise.all([
+        const [statsRes, contactRes, purchaseRes, testDriveRes] = await Promise.all([
           api.get("/api/admin/stats"),
           api.get("/api/admin/contacts"),
           api.get("/api/admin/purchases"),
           api.get("/api/admin/test-drives"),
-          api.get("/api/admin/cars-inventory"),
         ]);
         if (!cancelled) {
           setStats(statsRes.data);
           setContacts(Array.isArray(contactRes.data) ? contactRes.data : []);
           setPurchases(Array.isArray(purchaseRes.data) ? purchaseRes.data : []);
           setTestDrives(Array.isArray(testDriveRes.data) ? testDriveRes.data : []);
-          const list = Array.isArray(carsRes.data?.data)
-            ? carsRes.data.data
-            : Array.isArray(carsRes.data)
-              ? carsRes.data
-              : [];
-          setCars(list);
         }
+
+        const carsFromPayload = (data) =>
+          Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+
+        let carsList = [];
+        try {
+          const carsRes = await api.get("/api/admin/cars-inventory");
+          carsList = carsFromPayload(carsRes.data);
+        } catch (carErr) {
+          if (carErr.response?.status === 404) {
+            const fallback = await api.get("/api/cars?pageSize=48&page=1");
+            carsList = carsFromPayload(fallback.data);
+            if (!cancelled) {
+              showToast(
+                "Inventari i plotë: rinise backend-in (npm start) për të përdorur /api/admin/cars-inventory.",
+                "warning"
+              );
+            }
+          } else {
+            throw carErr;
+          }
+        }
+        if (!cancelled) setCars(carsList);
       } catch (e) {
         if (!cancelled) {
           setError(
@@ -78,7 +94,7 @@ export default function Admin() {
     return () => {
       cancelled = true;
     };
-  }, [navigate]);
+  }, [navigate, showToast]);
 
   if (!isAdmin()) {
     return null;
