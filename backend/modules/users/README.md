@@ -12,6 +12,8 @@ si dhe ndryshim i fjalëkalimit me verifikim (current password).
 | GET | `/api/users/me` | JWT | Profili nga token (pa fjalëkalim) |
 | POST | `/api/users/activation/request` | Public | Krijon token aktivizimi dhe dërgon email për aktivizim |
 | GET | `/api/users/activate?token=...` | Public | Aktivizon llogarinë |
+| POST | `/api/users/password/reset/request` | Public | Kërkon reset password dhe dërgon email |
+| POST | `/api/users/password/reset/confirm` | Public | Vendos password të ri me token reset |
 | POST | `/api/users/me/password` | JWT | Ndryshim password me verifikim |
 | GET | `/api/users` | Admin | Lista `id, name, email, role, is_active` |
 | GET | `/api/users/:id` | Admin | Detaje user (safe) |
@@ -30,9 +32,15 @@ si dhe ndryshim i fjalëkalimit me verifikim (current password).
 
 - Ngjarje: `profile_read`, `admin_list`, `admin_create`, `admin_update`, `admin_delete` përmes `moduleLogger` (`module:users`).
 
-## SMTP konfigurimi (opsional, por rekomandohet)
+## Email konfigurimi (SMTP ose SendGrid)
 
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`
-- `SMTP_FROM` (opsional)
+- `EMAIL_PROVIDER=smtp` ose `EMAIL_PROVIDER=sendgrid`
+- SMTP:
+  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`
+  - `SMTP_FROM` (opsional)
+- SendGrid:
+  - `SENDGRID_API_KEY`
+  - `SENDGRID_FROM`
 - `PUBLIC_API_URL` (p.sh. `http://localhost:5000`) për linkun e aktivizimit
-- `EXPOSE_ACTIVATION_LINK=true` vetëm për development/testing (opsional)
+- `PUBLIC_APP_URL` (p.sh. `http://localhost:3000`) për linkun e reset-password
+- `EXPOSE_ACTIVATION_LINK=true` dhe `EXPOSE_PASSWORD_RESET_LINK=true` vetëm për development/testing (opsional)

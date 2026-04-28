@@ -1,9 +1,11 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const pool = require("../config/mysql");
-const Contact = require("../models/Contact");
 const requireAdmin = require("../middleware/requireAdmin");
 const { buildTestDriveSlotKey } = require("../lib/testDriveSlot");
+const businessLogicService = require("../application/services/BusinessLogicService");
+const contactRepository = require("../repositories/contactRepository");
+const auditLogRepository = require("../repositories/auditLogRepository");
 
 const router = express.Router();
 
@@ -59,8 +61,10 @@ router.get("/stats", async (req, res) => {
       if (err.code !== "ER_NO_SUCH_TABLE") throw err;
     }
     let contactCount = 0;
+    let auditCount = 0;
     if (mongoose.connection.readyState === 1) {
-      contactCount = await Contact.countDocuments();
+      contactCount = await contactRepository.countContacts();
+      auditCount = await auditLogRepository.countAuditLogs();
     }
     return res.json({
       users: userRow.users,
@@ -68,8 +72,38 @@ router.get("/stats", async (req, res) => {
       purchases: purchaseCount,
       testDrives: testDriveCount,
       contactsMongo: contactCount,
+      auditLogs: auditCount,
     });
   } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+router.get("/audit-logs", async (req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.json([]);
+    }
+    const logs = await auditLogRepository.listAuditLogs(300);
+    return res.json(logs);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+router.get("/analytics", async (req, res) => {
+  try {
+    const snapshot = await businessLogicService.getAdminAnalyticsSnapshot();
+    return res.json(snapshot);
+  } catch (err) {
+    if (err.code === "ER_NO_SUCH_TABLE") {
+      return res.json({
+        totalRevenueNet: 0,
+        averageAmountToAdd: 0,
+        approvedTradeIns: 0,
+        rejectedTradeIns: 0,
+      });
+    }
     return res.status(500).json({ message: err.message });
   }
 });
@@ -79,7 +113,7 @@ router.get("/contacts", async (req, res) => {
     if (mongoose.connection.readyState !== 1) {
       return res.json([]);
     }
-    const messages = await Contact.find().sort({ createdAt: -1 }).lean();
+    const messages = await contactRepository.listContacts();
     return res.json(messages);
   } catch (err) {
     return res.status(500).json({ message: err.message });

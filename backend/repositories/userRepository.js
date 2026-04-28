@@ -121,6 +121,33 @@ async function markActivationTokenUsed(id) {
   return result.affectedRows > 0;
 }
 
+async function insertPasswordResetToken({ user_id, token_hash, expires_at }) {
+  const [result] = await pool.query(
+    "INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
+    [user_id, token_hash, expires_at]
+  );
+  return result.insertId;
+}
+
+async function findPasswordResetTokenByHash(token_hash) {
+  const [rows] = await pool.query(
+    `SELECT id, user_id, expires_at, used_at
+     FROM password_reset_tokens
+     WHERE token_hash = ?
+     LIMIT 1`,
+    [token_hash]
+  );
+  return rows[0] || null;
+}
+
+async function markPasswordResetTokenUsed(id) {
+  const [result] = await pool.query(
+    "UPDATE password_reset_tokens SET used_at = NOW() WHERE id = ? AND used_at IS NULL",
+    [id]
+  );
+  return result.affectedRows > 0;
+}
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -135,4 +162,7 @@ module.exports = {
   insertActivationToken,
   findActivationTokenByHash,
   markActivationTokenUsed,
+  insertPasswordResetToken,
+  findPasswordResetTokenByHash,
+  markPasswordResetTokenUsed,
 };

@@ -4,6 +4,11 @@
 
 Menaxhim inventari veturash (CRUD në MySQL), forma kontakti dhe ruajtje në MongoDB, logje aktiviteti të lidhura me vetura (Mongo) përmes `carService` / `carLogService`.
 
+Ky modul përdor ndarje DDD:
+- **Domain layer**: `backend/domain/entities`, `backend/domain/services`
+- **Application layer**: `backend/application/services` (orchestrimi i use-case)
+- **Interface layer**: `routes`/`controllers`
+
 ## API publike (HTTP)
 
 ### Veturat — `/api/cars`
@@ -16,6 +21,13 @@ Menaxhim inventari veturash (CRUD në MySQL), forma kontakti dhe ruajtje në Mon
 | PUT | `/api/cars/:id` | JWT | Përditësim |
 | DELETE | `/api/cars/:id` | JWT | Fshirje |
 
+### Biznes / Analytics & Invoice
+
+| Metoda | Rruga | Auth | Përshkrim |
+|--------|-------|------|-----------|
+| GET | `/api/manager/invoices/:purchaseId` | Manager/Admin | Gjeneron invoice view nga domain service |
+| GET | `/api/admin/analytics` | Admin | Snapshot analitik (revenue, trade-in outcome) |
+
 ### Kontakt — `/api/contact`
 
 | Metoda | Rruga | Auth | Përshkrim |
@@ -27,6 +39,9 @@ Menaxhim inventari veturash (CRUD në MySQL), forma kontakti dhe ruajtje në Mon
 
 - Cars: `routes/carRoutes.js`, `controllers/carController.js`, `services/carService.js`, `repositories/carRepository.js`
 - Contact: `routes/contactRoutes.js`, `models/Contact.js`
+- Domain services: `domain/services/InvoiceService.js`, `domain/services/AnalyticsService.js`
+- Application service: `application/services/BusinessLogicService.js`
+- Data access (ORM): `dal/sequelize.js`, `dal/models.js`, `repositories/businessRepository.js` (Sequelize)
 
 ## Logging / monitoring
 

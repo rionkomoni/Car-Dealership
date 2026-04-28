@@ -2,6 +2,7 @@ const express = require("express");
 const Joi = require("joi");
 const pool = require("../config/mysql");
 const requireManagerOrAdmin = require("../middleware/requireManagerOrAdmin");
+const businessLogicService = require("../application/services/BusinessLogicService");
 
 const router = express.Router();
 
@@ -14,32 +15,8 @@ const tradeInDecisionSchema = Joi.object({
 
 router.get("/overview", async (req, res) => {
   try {
-    const [[totalRow]] = await pool.query("SELECT COUNT(*) AS totalCars FROM cars");
-    const [[soldRow]] = await pool.query(
-      "SELECT COUNT(*) AS soldCars FROM cars WHERE sold_out = 1"
-    );
-    const [[availableRow]] = await pool.query(
-      "SELECT COUNT(*) AS availableCars FROM cars WHERE sold_out = 0"
-    );
-    const [[purchaseRow]] = await pool.query(
-      "SELECT COUNT(*) AS totalPurchases FROM purchases"
-    );
-    const [latestPurchases] = await pool.query(
-      `SELECT
-        p.id, p.car_id, p.buyer_name, p.amount_to_add, p.created_at, c.name AS car_name
-      FROM purchases p
-      LEFT JOIN cars c ON c.id = p.car_id
-      ORDER BY p.created_at DESC
-      LIMIT 5`
-    );
-
-    return res.json({
-      totalCars: totalRow.totalCars,
-      soldCars: soldRow.soldCars,
-      availableCars: availableRow.availableCars,
-      totalPurchases: purchaseRow.totalPurchases,
-      latestPurchases,
-    });
+    const overview = await businessLogicService.getManagerOverview();
+    return res.json(overview);
   } catch (err) {
     if (err.code === "ER_NO_SUCH_TABLE") {
       return res.json({
@@ -50,6 +27,20 @@ router.get("/overview", async (req, res) => {
         latestPurchases: [],
       });
     }
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+router.get("/invoices/:purchaseId", async (req, res) => {
+  const purchaseId = Number(req.params.purchaseId);
+  if (!Number.isInteger(purchaseId) || purchaseId <= 0) {
+    return res.status(400).json({ message: "Invalid purchase id." });
+  }
+  try {
+    const invoice = await businessLogicService.getInvoiceByPurchaseId(purchaseId);
+    if (!invoice) return res.status(404).json({ message: "Purchase not found." });
+    return res.json(invoice);
+  } catch (err) {
     return res.status(500).json({ message: err.message });
   }
 });

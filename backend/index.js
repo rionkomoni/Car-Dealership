@@ -287,6 +287,11 @@ async function ensureAdvancedRelationalModel() {
     "fk_account_activation_tokens_user_id",
     "ALTER TABLE account_activation_tokens ADD CONSTRAINT fk_account_activation_tokens_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE"
   );
+  await ensureForeignKey(
+    "password_reset_tokens",
+    "fk_password_reset_tokens_user_id",
+    "ALTER TABLE password_reset_tokens ADD CONSTRAINT fk_password_reset_tokens_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE"
+  );
 
   // Optimized indexes.
   await ensureIndex(
@@ -498,6 +503,21 @@ const startServer = async () => {
         INDEX idx_activation_user_created (user_id, created_at),
         INDEX idx_activation_expires (expires_at),
         INDEX idx_activation_used (used_at)
+      )
+    `);
+
+    startupStep = "ensure password_reset_tokens table";
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        token_hash CHAR(64) NOT NULL UNIQUE,
+        expires_at TIMESTAMP NOT NULL,
+        used_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_pwdreset_user_created (user_id, created_at),
+        INDEX idx_pwdreset_expires (expires_at),
+        INDEX idx_pwdreset_used (used_at)
       )
     `);
 

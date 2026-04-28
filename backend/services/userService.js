@@ -1,7 +1,7 @@
 const userRepository = require("../repositories/userRepository");
 const bcrypt = require("bcryptjs");
 const { generateRefreshToken, hashToken, parseTtlMs } = require("../lib/tokens");
-const { sendActivationEmail } = require("./emailService");
+const { sendActivationEmail, sendPasswordResetEmail } = require("./emailService");
 
 function getProfileFromToken(user) {
   return {
@@ -57,6 +57,10 @@ function getActivationTtlMs() {
   return parseTtlMs(process.env.ACTIVATION_TOKEN_TTL || "1d", 24 * 60 * 60 * 1000);
 }
 
+function getPasswordResetTtlMs() {
+  return parseTtlMs(process.env.PASSWORD_RESET_TOKEN_TTL || "30m", 30 * 60 * 1000);
+}
+
 async function requestActivationForEmail(email) {
   const normalized = String(email).trim().toLowerCase();
   const user = await userRepository.findUserByEmail(normalized);
@@ -105,6 +109,42 @@ async function changePasswordWithVerification(userId, currentPassword, newPasswo
   return { ok: true };
 }
 
+async function requestPasswordResetForEmail(email) {
+  const normalized = String(email).trim().toLowerCase();
+  const user = await userRepository.findUserByEmail(normalized);
+  if (!user) return { ok: true, resetLink: null, delivered: false };
+
+  const raw = generateRefreshToken();
+  const tokenHash = hashToken(raw);
+  const expiresAt = new Date(Date.now() + getPasswordResetTtlMs());
+  await userRepository.insertPasswordResetToken({
+    user_id: user.id,
+    token_hash: tokenHash,
+    expires_at: expiresAt,
+  });
+
+  const appBase = process.env.PUBLIC_APP_URL || "http://localhost:3000";
+  const resetLink = `${appBase}/reset-password?token=${raw}`;
+  const sent = await sendPasswordResetEmail({
+    to: normalized,
+    resetLink,
+  });
+  return { ok: true, resetLink, delivered: sent.delivered };
+}
+
+async function resetPasswordByToken(rawToken, newPassword) {
+  const tokenHash = hashToken(rawToken);
+  const t = await userRepository.findPasswordResetTokenByHash(tokenHash);
+  if (!t) return { ok: false, reason: "invalid" };
+  if (t.used_at) return { ok: false, reason: "used" };
+  if (new Date(t.expires_at).getTime() <= Date.now()) return { ok: false, reason: "expired" };
+
+  const hashed = await bcrypt.hash(newPassword, 10);
+  await userRepository.setUserPasswordById(t.user_id, hashed);
+  await userRepository.markPasswordResetTokenUsed(t.id);
+  return { ok: true, userId: t.user_id };
+}
+
 module.exports = {
   getProfileFromToken,
   listUsersForAdmin,
@@ -115,4 +155,6 @@ module.exports = {
   requestActivationForEmail,
   activateAccountByToken,
   changePasswordWithVerification,
+  requestPasswordResetForEmail,
+  resetPasswordByToken,
 };

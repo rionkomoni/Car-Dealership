@@ -1,10 +1,10 @@
 const mongoose = require("mongoose");
-const CarLog = require("../models/CarLog");
+const carLogRepository = require("../repositories/carLogRepository");
 
 async function saveCarLog(entry) {
   try {
     if (mongoose.connection.readyState !== 1) return;
-    await CarLog.create(entry);
+    await carLogRepository.createCarLog(entry);
   } catch (err) {
     console.warn("CarLog skipped:", err.message);
   }

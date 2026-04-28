@@ -8,6 +8,8 @@ const router = express.Router();
 router.get("/me", auth, userController.getMe);
 router.post("/activation/request", userController.requestActivation);
 router.get("/activate", userController.activate);
+router.post("/password/reset/request", userController.requestPasswordReset);
+router.post("/password/reset/confirm", userController.resetPassword);
 router.post("/me/password", auth, userController.changePassword);
 
 router.get("/", requireAdmin, userController.listAll);

@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const Joi = require("joi");
 const pool = require("../config/mysql");
 const { generateRefreshToken, hashToken, parseTtlMs } = require("../lib/tokens");
+const { saveAuditLog, auditContextFromReq } = require("../services/auditService");
 
 const router = express.Router();
 
@@ -105,6 +106,14 @@ router.post("/login", async (req, res) => {
     ]);
 
     if (rows.length === 0) {
+      await saveAuditLog({
+        module: "auth",
+        action: "login",
+        outcome: "failure",
+        message: "user_not_found",
+        userEmail: normalizedEmail,
+        ...auditContextFromReq(req),
+      });
       return res.status(400).json({ message: "Përdoruesi nuk u gjet" });
     }
 
@@ -113,6 +122,16 @@ router.post("/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
+      await saveAuditLog({
+        module: "auth",
+        action: "login",
+        outcome: "failure",
+        message: "invalid_password",
+        userId: user.id,
+        userEmail: user.email,
+        role: user.role,
+        ...auditContextFromReq(req),
+      });
       return res.status(400).json({ message: "Password i gabuar" });
     }
 
@@ -141,6 +160,16 @@ router.post("/login", async (req, res) => {
       // If refresh token table isn't initialized yet (first run), fail loudly.
       return res.status(500).json({ message: e.message });
     }
+
+    await saveAuditLog({
+      module: "auth",
+      action: "login",
+      outcome: "success",
+      userId: user.id,
+      userEmail: user.email,
+      role: user.role,
+      ...auditContextFromReq(req),
+    });
 
     return res.json({
       success: true,
@@ -186,12 +215,35 @@ router.post("/refresh", async (req, res) => {
     );
     const tokenRow = rows[0];
     if (!tokenRow) {
+      await saveAuditLog({
+        module: "auth",
+        action: "refresh",
+        outcome: "failure",
+        message: "token_not_found",
+        ...auditContextFromReq(req),
+      });
       return res.status(401).json({ message: "Refresh token i pavlefshëm" });
     }
     if (tokenRow.revoked_at) {
+      await saveAuditLog({
+        module: "auth",
+        action: "refresh",
+        outcome: "failure",
+        message: "token_revoked",
+        userId: tokenRow.user_id,
+        ...auditContextFromReq(req),
+      });
       return res.status(401).json({ message: "Refresh token është revokuar" });
     }
     if (new Date(tokenRow.expires_at).getTime() <= Date.now()) {
+      await saveAuditLog({
+        module: "auth",
+        action: "refresh",
+        outcome: "failure",
+        message: "token_expired",
+        userId: tokenRow.user_id,
+        ...auditContextFromReq(req),
+      });
       return res.status(401).json({ message: "Refresh token është skaduar" });
     }
 
@@ -233,6 +285,16 @@ router.post("/refresh", async (req, res) => {
       { expiresIn: getAccessTokenTtl() }
     );
 
+    await saveAuditLog({
+      module: "auth",
+      action: "refresh",
+      outcome: "success",
+      userId: user.id,
+      userEmail: user.email,
+      role: user.role,
+      ...auditContextFromReq(req),
+    });
+
     return res.json({
       success: true,
       token: accessToken,
@@ -262,6 +324,13 @@ router.post("/logout", async (req, res) => {
       "UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = ? AND revoked_at IS NULL",
       [incomingHash]
     );
+    await saveAuditLog({
+      module: "auth",
+      action: "logout",
+      outcome: "success",
+      message: result.affectedRows ? "token_revoked" : "already_revoked_or_missing",
+      ...auditContextFromReq(req),
+    });
     return res.json({
       success: true,
       message: result.affectedRows ? "Logout u krye me sukses" : "Token ishte tashmë i revokuar",

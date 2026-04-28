@@ -61,6 +61,21 @@ module.exports = {
           new_password: { type: "string", minLength: 6 },
         },
       },
+      PasswordResetRequest: {
+        type: "object",
+        required: ["email"],
+        properties: {
+          email: { type: "string", format: "email" },
+        },
+      },
+      PasswordResetConfirmRequest: {
+        type: "object",
+        required: ["token", "new_password"],
+        properties: {
+          token: { type: "string" },
+          new_password: { type: "string", minLength: 6 },
+        },
+      },
       PurchaseRequest: {
         type: "object",
         required: ["buyer_name", "buyer_email", "payment_method"],
@@ -233,6 +248,41 @@ module.exports = {
         },
       },
     },
+    "/api/v1/users/password/reset/request": {
+      post: {
+        tags: ["Users"],
+        summary: "Request password reset email",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/PasswordResetRequest" },
+            },
+          },
+        },
+        responses: {
+          200: { description: "Reset request accepted" },
+        },
+      },
+    },
+    "/api/v1/users/password/reset/confirm": {
+      post: {
+        tags: ["Users"],
+        summary: "Confirm password reset with token",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/PasswordResetConfirmRequest" },
+            },
+          },
+        },
+        responses: {
+          200: { description: "Password reset success" },
+          400: { description: "Invalid/expired/used token" },
+        },
+      },
+    },
     "/api/v1/cars": {
       get: {
         tags: ["Cars"],
@@ -363,6 +413,30 @@ module.exports = {
         },
       },
     },
+    "/api/v1/admin/audit-logs": {
+      get: {
+        tags: ["Admin"],
+        summary: "List latest audit logs (admin JWT required)",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: "Audit log list" },
+          401: { description: "Unauthorized" },
+          403: { description: "Admin access required" },
+        },
+      },
+    },
+    "/api/v1/admin/analytics": {
+      get: {
+        tags: ["Admin"],
+        summary: "Business analytics snapshot (admin JWT required)",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: "Revenue and trade-in analytics" },
+          401: { description: "Unauthorized" },
+          403: { description: "Admin access required" },
+        },
+      },
+    },
     "/api/v1/admin/cars-inventory": {
       get: {
         tags: ["Admin"],
@@ -384,6 +458,22 @@ module.exports = {
           200: { description: "Overview metrics and latest purchases" },
           401: { description: "Unauthorized" },
           403: { description: "Manager or admin access required" },
+        },
+      },
+    },
+    "/api/v1/manager/invoices/{purchaseId}": {
+      get: {
+        tags: ["Manager"],
+        summary: "Generate invoice view from purchase (manager/admin JWT required)",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "purchaseId", in: "path", required: true, schema: { type: "integer" } },
+        ],
+        responses: {
+          200: { description: "Invoice payload" },
+          401: { description: "Unauthorized" },
+          403: { description: "Manager or admin access required" },
+          404: { description: "Purchase not found" },
         },
       },
     },
