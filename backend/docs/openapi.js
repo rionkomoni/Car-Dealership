@@ -39,6 +39,28 @@ module.exports = {
           password: { type: "string" },
         },
       },
+      RefreshRequest: {
+        type: "object",
+        required: ["refreshToken"],
+        properties: {
+          refreshToken: { type: "string" },
+        },
+      },
+      ActivationRequest: {
+        type: "object",
+        required: ["email"],
+        properties: {
+          email: { type: "string", format: "email" },
+        },
+      },
+      ChangePasswordRequest: {
+        type: "object",
+        required: ["current_password", "new_password"],
+        properties: {
+          current_password: { type: "string" },
+          new_password: { type: "string", minLength: 6 },
+        },
+      },
       PurchaseRequest: {
         type: "object",
         required: ["buyer_name", "buyer_email", "payment_method"],
@@ -100,7 +122,7 @@ module.exports = {
     "/api/v1/auth/login": {
       post: {
         tags: ["Auth"],
-        summary: "Login and receive JWT token",
+        summary: "Login and receive access + refresh tokens",
         requestBody: {
           required: true,
           content: {
@@ -112,6 +134,102 @@ module.exports = {
         responses: {
           200: { description: "Logged in" },
           400: { description: "Invalid credentials" },
+        },
+      },
+    },
+    "/api/v1/auth/refresh": {
+      post: {
+        tags: ["Auth"],
+        summary: "Refresh access token (rotation) using refresh token",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/RefreshRequest" },
+            },
+          },
+        },
+        responses: {
+          200: { description: "New access + refresh token" },
+          401: { description: "Invalid/expired refresh token" },
+        },
+      },
+    },
+    "/api/v1/auth/logout": {
+      post: {
+        tags: ["Auth"],
+        summary: "Revoke refresh token (logout)",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/RefreshRequest" },
+            },
+          },
+        },
+        responses: {
+          200: { description: "Logged out" },
+        },
+      },
+    },
+    "/api/v1/users/me": {
+      get: {
+        tags: ["Auth", "Users"],
+        summary: "Get current user profile (JWT required)",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: "User profile from token" },
+          401: { description: "Unauthorized" },
+        },
+      },
+    },
+    "/api/v1/users/activation/request": {
+      post: {
+        tags: ["Users"],
+        summary: "Request account activation link (public)",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ActivationRequest" },
+            },
+          },
+        },
+        responses: {
+          200: { description: "Activation link response (non-enumerating)" },
+        },
+      },
+    },
+    "/api/v1/users/activate": {
+      get: {
+        tags: ["Users"],
+        summary: "Activate account by token (public)",
+        parameters: [
+          { name: "token", in: "query", required: true, schema: { type: "string" } },
+        ],
+        responses: {
+          200: { description: "Account activated" },
+          400: { description: "Invalid/expired token" },
+        },
+      },
+    },
+    "/api/v1/users/me/password": {
+      post: {
+        tags: ["Users"],
+        summary: "Change password with current password verification (JWT required)",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ChangePasswordRequest" },
+            },
+          },
+        },
+        responses: {
+          200: { description: "Password changed" },
+          400: { description: "Bad request / current password invalid" },
+          401: { description: "Unauthorized" },
         },
       },
     },

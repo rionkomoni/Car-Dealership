@@ -5,7 +5,10 @@ const auth = require("./auth");
  */
 function requireAdmin(req, res, next) {
   auth(req, res, () => {
-    if (req.user?.role !== "admin") {
+    const role = req.user?.role;
+    const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
+    const isAdmin = role === "admin" || roles.includes("ROLE_ADMIN");
+    if (!isAdmin) {
       return res.status(403).json({ message: "Admin access required" });
     }
     next();

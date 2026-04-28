@@ -8,6 +8,7 @@ const swaggerUi = require("swagger-ui-express");
 const pool = require("./config/mysql");
 const connectMongo = require("./config/mongo");
 const apiLimiter = require("./middleware/rateLimiter");
+const attachUserFromToken = require("./middleware/attachUserFromToken");
 const openApiSpec = require("./docs/openapi");
 
 
@@ -33,6 +34,7 @@ const PORT = Number(process.env.PORT) || 5000;
 app.use(cors());
 app.use(express.json());
 app.use("/api", apiLimiter);
+app.use("/api", attachUserFromToken);
 
 app.get("/", (req, res) => {
   res.send("Autosallon API po punon 🚀");
@@ -270,6 +272,21 @@ async function ensureAdvancedRelationalModel() {
     "fk_test_drive_requests_car_id",
     "ALTER TABLE test_drive_requests ADD CONSTRAINT fk_test_drive_requests_car_id FOREIGN KEY (car_id) REFERENCES cars(id) ON DELETE CASCADE ON UPDATE CASCADE"
   );
+  await ensureForeignKey(
+    "refresh_tokens",
+    "fk_refresh_tokens_user_id",
+    "ALTER TABLE refresh_tokens ADD CONSTRAINT fk_refresh_tokens_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE"
+  );
+  await ensureForeignKey(
+    "refresh_tokens",
+    "fk_refresh_tokens_replaced_by",
+    "ALTER TABLE refresh_tokens ADD CONSTRAINT fk_refresh_tokens_replaced_by FOREIGN KEY (replaced_by_token_id) REFERENCES refresh_tokens(id) ON DELETE SET NULL ON UPDATE CASCADE"
+  );
+  await ensureForeignKey(
+    "account_activation_tokens",
+    "fk_account_activation_tokens_user_id",
+    "ALTER TABLE account_activation_tokens ADD CONSTRAINT fk_account_activation_tokens_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE"
+  );
 
   // Optimized indexes.
   await ensureIndex(
@@ -349,6 +366,23 @@ async function ensureDbProgrammability() {
   );
 }
 
+async function ensureUserAccountColumns() {
+  const fragments = [
+    "ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 0",
+    "ADD COLUMN activated_at TIMESTAMP NULL",
+  ];
+  for (const fragment of fragments) {
+    try {
+      await pool.query(`ALTER TABLE users ${fragment}`);
+    } catch (err) {
+      const dup =
+        err.code === "ER_DUP_FIELDNAME" ||
+        (err.message && err.message.includes("Duplicate column name"));
+      if (!dup) throw err;
+    }
+  }
+}
+
 const startServer = async () => {
   let startupStep = "initialization";
   try {
@@ -365,6 +399,8 @@ const startServer = async () => {
         role VARCHAR(50) NOT NULL DEFAULT 'client'
       )
     `);
+    startupStep = "ensure user account columns";
+    await ensureUserAccountColumns();
 
     startupStep = "ensure cars table";
     await pool.query(`
@@ -433,6 +469,38 @@ const startServer = async () => {
     `);
     startupStep = "ensure test_drive slot_key unique";
     await ensureTestDriveSlotKey(pool);
+
+    startupStep = "ensure refresh_tokens table";
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS refresh_tokens (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        token_hash CHAR(64) NOT NULL UNIQUE,
+        expires_at TIMESTAMP NOT NULL,
+        revoked_at TIMESTAMP NULL,
+        replaced_by_token_id INT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_refresh_user_created (user_id, created_at),
+        INDEX idx_refresh_expires (expires_at),
+        INDEX idx_refresh_revoked (revoked_at)
+      )
+    `);
+
+    startupStep = "ensure account_activation_tokens table";
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS account_activation_tokens (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        token_hash CHAR(64) NOT NULL UNIQUE,
+        expires_at TIMESTAMP NOT NULL,
+        used_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_activation_user_created (user_id, created_at),
+        INDEX idx_activation_expires (expires_at),
+        INDEX idx_activation_used (used_at)
+      )
+    `);
+
     startupStep = "ensure purchases columns";
     await ensurePurchaseColumns();
     startupStep = "ensure db constraints and indexes";

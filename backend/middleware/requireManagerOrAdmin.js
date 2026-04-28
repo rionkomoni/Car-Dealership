@@ -6,7 +6,13 @@ const auth = require("./auth");
 function requireManagerOrAdmin(req, res, next) {
   auth(req, res, () => {
     const role = req.user?.role;
-    if (role !== "manager" && role !== "admin") {
+    const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
+    const ok =
+      role === "manager" ||
+      role === "admin" ||
+      roles.includes("ROLE_MANAGER") ||
+      roles.includes("ROLE_ADMIN");
+    if (!ok) {
       return res.status(403).json({ message: "Manager or admin access required" });
     }
     next();
