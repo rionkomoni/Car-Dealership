@@ -12,6 +12,7 @@ const apiLimiter = require("./middleware/rateLimiter");
 const attachUserFromToken = require("./middleware/attachUserFromToken");
 const openApiSpec = require("./docs/openapi");
 const { getServiceRegistry } = require("./integrations/serviceRegistry");
+const { initMessageBus, subscribeEvent } = require("./integrations/messageBus");
 
 
 const authRoutes = require("./routes/authRoutes");
@@ -574,6 +575,13 @@ const startServer = async () => {
     console.log("MySQL connected (phpMyAdmin / XAMPP)");
     startupStep = "connect mongodb";
     await connectMongo();
+
+    startupStep = "init message bus";
+    const bus = await initMessageBus();
+    console.log(`Message bus mode: ${bus.mode}`);
+    subscribeEvent("system.test", (event) => {
+      console.log(`[event:${event.event}]`, event.payload);
+    });
 
     startupStep = "listen";
     app.listen(PORT, () => {

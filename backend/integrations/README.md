@@ -43,8 +43,39 @@ does not change existing app routes:
    - Health through gateway: `http://localhost:8080/health`
    - Readiness through gateway: `http://localhost:8080/ready`
    - Consul UI: `http://localhost:8500`
+   - RabbitMQ UI: `http://localhost:15672` (user: `guest`, pass: `guest`)
 
 This is intentionally minimal so the current project behavior remains the same.
+
+## Inter-service communication (minimal implementation)
+
+### 1) Asynchronous messaging (RabbitMQ with local fallback)
+
+- File: `backend/integrations/messageBus.js`
+- Modes:
+  - `MESSAGE_BROKER=local` (default, no extra software)
+  - `MESSAGE_BROKER=rabbitmq` (uses `RABBITMQ_URL`)
+- Example event in code:
+  - `users.password_reset_requested` emitted from user service.
+
+Test endpoints:
+- `GET /api/v1/integrations/messaging/status`
+- `POST /api/v1/integrations/messaging/test-event`
+
+### 2) Synchronous modular calls (REST)
+
+- File: `backend/integrations/internalApiClient.js`
+- Calls internal endpoint `/api/v1/health` via HTTP.
+
+### 3) Circuit Breaker (fault tolerance)
+
+- File: `backend/lib/circuitBreaker.js`
+- Wrapped endpoint:
+  - `GET /api/v1/integrations/sync/health-through-breaker`
+- Tunable env vars:
+  - `CB_FAILURE_THRESHOLD` (default `3`)
+  - `CB_COOLDOWN_MS` (default `15000`)
+  - `CB_REQUEST_TIMEOUT_MS` (default `4000`)
 
 ## Extended architecture (description only — not implemented in this repo)
 

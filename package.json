@@ -30,6 +30,7 @@
   },
   "homepage": "https://github.com/rionkomoni/Car-Dealership#readme",
   "dependencies": {
+    "amqplib": "^1.0.3",
     "apicache": "^1.6.3",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.2",

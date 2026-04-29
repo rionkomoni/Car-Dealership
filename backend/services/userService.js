@@ -2,6 +2,7 @@ const userRepository = require("../repositories/userRepository");
 const bcrypt = require("bcryptjs");
 const { generateRefreshToken, hashToken, parseTtlMs } = require("../lib/tokens");
 const { sendActivationEmail, sendPasswordResetEmail } = require("./emailService");
+const { publishEvent } = require("../integrations/messageBus");
 
 function getProfileFromToken(user) {
   return {
@@ -129,6 +130,15 @@ async function requestPasswordResetForEmail(email) {
     to: normalized,
     resetLink,
   });
+  try {
+    await publishEvent("users.password_reset_requested", {
+      userId: user.id,
+      email: normalized,
+      delivered: sent.delivered,
+    });
+  } catch (err) {
+    console.warn(`Event publish failed: ${err.message}`);
+  }
   return { ok: true, resetLink, delivered: sent.delivered };
 }
 

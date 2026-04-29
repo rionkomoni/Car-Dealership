@@ -4,6 +4,7 @@ const carRoutes = require("../carRoutes");
 const contactRoutes = require("../contactRoutes");
 const carLogRoutes = require("../carLogRoutes");
 const adminRoutes = require("../adminRoutes");
+const integrationRoutes = require("./integrationRoutes");
 
 const router = express.Router();
 
@@ -23,5 +24,6 @@ router.use("/cars", carRoutes);
 router.use("/contact", contactRoutes);
 router.use("/car-logs", carLogRoutes);
 router.use("/admin", adminRoutes);
+router.use("/integrations", integrationRoutes);
 
 module.exports = router;
