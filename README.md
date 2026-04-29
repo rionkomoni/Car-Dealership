@@ -40,8 +40,8 @@ Dokumenti i plotë: [docs/supporting-diagrams-phase8.md](docs/supporting-diagram
 | Frontend (një nga: **React**, Angular, Vue) | **React.js** — `frontend/` |
 | Routing dinamik | **React Router** — rrugë si `/cars/:id`, `/login`, etj. |
 | State management (Redux / Vuex) | **Redux Toolkit** — `frontend/src/store/` (`authSlice`, `store`) — `token` dhe `user` |
-| RabbitMQ / Kafka (mesazhe ndër-shërbim) | **Jo në kod** (monolith me REST). Përshkrim në [backend/integrations/README.md](backend/integrations/README.md) — si do përdoreshin në sistem me shërbime të shumta |
-| gRPC (performancë e lartë) | **Jo në kod** (klienti përdor HTTP/JSON). **Përshkrim** i njëjtë si më sipër |
+| RabbitMQ / Kafka (mesazhe ndër-shërbim) | **RabbitMQ i implementuar opsionalisht** për evente (`backend/integrations/messageBus.js`) me fallback lokal; endpoint-e testimi te `/api/v1/integrations/messaging/*` |
+| gRPC (performancë e lartë) | **Nuk përdoret në këtë monolith** (REST/JSON aktiv), por arkitektura e modulizuar është gati për adapter gRPC në ndarje microservice |
 
 Nuk është e nevojshme të përdoren të gjitha backend-et në listë — zgjedhja është **një** stack; këtu: **Express + React**.
 
@@ -136,9 +136,23 @@ Më shumë: [backend/integrations/README.md](backend/integrations/README.md).
 
 Nëse `REACT_APP_API_URL` nuk është vendosur, CRA proxy (nëse ekziston në `frontend/package.json`) dërgon `/api` te backend-i lokal.
 
+## Testim dhe validim (Phase III)
+
+- Unit + integration coverage: `npm run test:coverage`
+- E2E (Cypress): `npm run test:e2e:run`
+- Performance/load (Autocannon): `npm run test:performance`
+- Full QA pipeline: `npm run qa:full`
+
+Parametra të load test:
+- `LOAD_TEST_URL` (default: `http://localhost:5000/health`)
+- `LOAD_TEST_DURATION_SEC` (default: `20`)
+- `LOAD_TEST_CONNECTIONS` (default: `50`)
+- `LOAD_TEST_MAX_AVG_LATENCY_MS` (default: `500`)
+- `LOAD_TEST_MIN_AVG_RPS` (default: `20`)
+
 ## Çfarë të instalosh për të punuar në projekt (mjedis real)
 
-Këto **nuk** janë RabbitMQ/Kafka — janë mjetet që i duhen **këtij** repo për të ekzekutuar kodin:
+Këto janë mjetet bazë që i duhen **këtij** repo:
 
 | Aplikacion / mjet | Pse |
 |-------------------|-----|
@@ -146,11 +160,15 @@ Këto **nuk** janë RabbitMQ/Kafka — janë mjetet që i duhen **këtij** repo 
 | **Git** | versionim, commit, push në GitHub. |
 | **MySQL** | të dhënat relacionale (users, cars). Me **XAMPP** merr edhe MySQL + phpMyAdmin; ose MySQL Community nëse nuk përdor XAMPP. |
 | **MongoDB Community Server** (ose MongoDB Atlas në cloud) | kontaktet dhe logjet; pa Mongo, disa pjesë kthejnë bosh ose 503. |
+| **Cypress** | teste end-to-end për rrjedhat reale të përdoruesit. |
+| **Autocannon** | load/performance test për endpoint-et kritike. |
 | **Editor** (Cursor / VS Code) | shkrimi i kodit — opsional por praktik. |
 
 Opsionale: **Postman** ose **Thunder Client** për të testuar `GET/POST` te `http://localhost:5000/api/...`.
 
-**Nuk duhet të instalosh** RabbitMQ, Kafka apo kompilator gRPC për të ekzekutuar këtë projekt — ato janë të përmendura vetëm në **përshkrim arkitekture** (shih më poshtë dhe [backend/integrations/README.md](backend/integrations/README.md)).
+Opsionale për enterprise setup:
+- RabbitMQ + Redis + Consul me `docker compose -f docker-compose.gateway.yml up`
+- Kafka/gRPC mbeten opcionale dhe nuk kërkohen për ekzekutim lokal të këtij monolithi.
 
 ## Kërkesë akademike: komunikim ndër-shërbim (vetëm përshkrim, jo në kod)
 

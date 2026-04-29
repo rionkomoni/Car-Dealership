@@ -7,10 +7,14 @@
   "scripts": {
     "start": "node backend/index.js",
     "dev": "nodemon backend/index.js",
-    "test": "jest tests --runInBand --detectOpenHandles",
-    "test:coverage": "jest tests --runInBand --coverage",
+    "test": "jest tests --runInBand --detectOpenHandles --testPathIgnorePatterns=testcontainers.environment.integration.test.js",
+    "test:coverage": "jest tests --runInBand --coverage --testPathIgnorePatterns=testcontainers.environment.integration.test.js",
     "test:integration:newman": "newman run tests/postman/Car-Dealership.postman_collection.json -e tests/postman/local.postman_environment.json",
-    "test:integration:testcontainers": "jest tests/testcontainers.environment.integration.test.js --runInBand"
+    "test:integration:testcontainers": "jest tests/testcontainers.environment.integration.test.js --runInBand",
+    "test:e2e:open": "cypress open",
+    "test:e2e:run": "cypress run",
+    "test:performance": "node tests/performance/load-test.js",
+    "qa:full": "npm run test:coverage && npm run test:e2e:run && npm run test:performance"
   },
   "repository": {
     "type": "git",
@@ -51,6 +55,8 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "autocannon": "^8.0.0",
+    "cypress": "^14.5.4",
     "jest": "^30.3.0",
     "newman": "^6.2.2",
     "nodemon": "^3.1.14",
