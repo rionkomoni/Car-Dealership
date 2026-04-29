@@ -4,12 +4,14 @@ require("dotenv").config({ path: path.join(__dirname, ".env") });
 const mysql = require("mysql2/promise");
 const express = require("express");
 const cors = require("cors");
+const mongoose = require("mongoose");
 const swaggerUi = require("swagger-ui-express");
 const pool = require("./config/mysql");
 const connectMongo = require("./config/mongo");
 const apiLimiter = require("./middleware/rateLimiter");
 const attachUserFromToken = require("./middleware/attachUserFromToken");
 const openApiSpec = require("./docs/openapi");
+const { getServiceRegistry } = require("./integrations/serviceRegistry");
 
 
 const authRoutes = require("./routes/authRoutes");
@@ -38,6 +40,38 @@ app.use("/api", attachUserFromToken);
 
 app.get("/", (req, res) => {
   res.send("Autosallon API po punon 🚀");
+});
+
+app.get("/health", (req, res) => {
+  return res.json({
+    status: "ok",
+    uptimeSec: Number(process.uptime().toFixed(2)),
+    timestamp: new Date().toISOString(),
+    services: getServiceRegistry(),
+  });
+});
+
+app.get("/ready", async (req, res) => {
+  const readiness = {
+    status: "ready",
+    mysql: "up",
+    mongo: mongoose.connection.readyState === 1 ? "up" : "down",
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    await pool.query("SELECT 1");
+  } catch (err) {
+    readiness.status = "not_ready";
+    readiness.mysql = "down";
+  }
+
+  if (readiness.mongo !== "up") {
+    readiness.status = "not_ready";
+  }
+
+  const statusCode = readiness.status === "ready" ? 200 : 503;
+  return res.status(statusCode).json(readiness);
 });
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiSpec));

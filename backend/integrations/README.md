@@ -23,6 +23,29 @@ The registry is exposed through `GET /health` from `backend/index.js`.
 - `GET /ready`: verifies database readiness (`MySQL`) and includes `MongoDB`
   connection state.
 
+## Minimal API Gateway + Registry setup (simple and optional)
+
+For coursework requirements, this repo now includes a lightweight setup that
+does not change existing app routes:
+
+- **API Gateway**: Nginx config at `deploy/nginx/api-gateway.conf`
+  (forwards all requests to backend).
+- **Service Registry**: internal registry in code (`serviceRegistry.js`) and
+  optional Consul container in `docker-compose.gateway.yml`.
+
+### Quick start
+
+1. Keep your existing `backend/.env` values.
+2. Run:
+   - `docker compose -f docker-compose.gateway.yml up`
+3. Access:
+   - Gateway: `http://localhost:8080`
+   - Health through gateway: `http://localhost:8080/health`
+   - Readiness through gateway: `http://localhost:8080/ready`
+   - Consul UI: `http://localhost:8500`
+
+This is intentionally minimal so the current project behavior remains the same.
+
 ## Extended architecture (description only — not implemented in this repo)
 
 This monolith uses HTTP (`/api/*`) and an internal registry in code

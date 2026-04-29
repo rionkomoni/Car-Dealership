@@ -1,0 +1,26 @@
+services:
+  backend:
+    image: node:20
+    working_dir: /app
+    command: sh -c "npm install && npm start"
+    volumes:
+      - ./:/app
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env
+
+  gateway:
+    image: nginx:1.27-alpine
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+    volumes:
+      - ./deploy/nginx/api-gateway.conf:/etc/nginx/nginx.conf:ro
+
+  consul:
+    image: hashicorp/consul:1.19
+    command: "agent -server -ui -node=consul-dev -bootstrap-expect=1 -client=0.0.0.0"
+    ports:
+      - "8500:8500"
