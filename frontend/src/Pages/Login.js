@@ -78,6 +78,9 @@ export default function Login() {
               required
             />
           </label>
+          <p className="form-footer" style={{ marginTop: "-0.2rem", marginBottom: "0.9rem" }}>
+            <Link to="/forgot-password">Forgot password?</Link>
+          </p>
           <button type="submit" className="btn btn-primary">
             Sign in
           </button>

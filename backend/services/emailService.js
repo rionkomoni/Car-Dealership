@@ -68,10 +68,46 @@ async function sendViaSendGrid({ to, subject, text, html }) {
   return { delivered: true, mode: "sendgrid" };
 }
 
+async function sendViaMailtrap({ to, subject, text, html }) {
+  const token = process.env.MAILTRAP_API_TOKEN;
+  const fromEmail = process.env.MAILTRAP_FROM_EMAIL || process.env.SMTP_FROM;
+  const fromName = process.env.MAILTRAP_FROM_NAME || process.env.APP_NAME || "Car Dealership";
+
+  if (!token || !fromEmail) {
+    console.log(`[mail:fallback] To ${to} | ${subject}\n${text}`);
+    return { delivered: false, mode: "fallback-console" };
+  }
+
+  const response = await fetch("https://send.api.mailtrap.io/api/send", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: { email: fromEmail, name: fromName },
+      to: [{ email: to }],
+      subject,
+      text,
+      html,
+      category: "Car Dealership",
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Mailtrap error (${response.status}): ${body}`);
+  }
+  return { delivered: true, mode: "mailtrap" };
+}
+
 async function sendMail({ to, subject, text, html }) {
   const provider = getEmailProvider();
   if (provider === "sendgrid") {
     return sendViaSendGrid({ to, subject, text, html });
+  }
+  if (provider === "mailtrap") {
+    return sendViaMailtrap({ to, subject, text, html });
   }
   return sendViaSmtp({ to, subject, text, html });
 }

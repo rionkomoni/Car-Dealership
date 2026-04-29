@@ -12,6 +12,8 @@ import { AppToastProvider } from "./components/ui/AppToastProvider";
 
 const Login = lazy(() => import("./Pages/Login.js"));
 const Register = lazy(() => import("./Pages/Register.js"));
+const ForgotPassword = lazy(() => import("./Pages/ForgotPassword.js"));
+const ResetPassword = lazy(() => import("./Pages/ResetPassword.js"));
 const Contact = lazy(() => import("./Pages/Contact.js"));
 const AddCar = lazy(() => import("./Pages/AddCar.js"));
 const CarDetail = lazy(() => import("./Pages/CarDetail.js"));
@@ -45,6 +47,8 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/cars/:id" element={<CarDetail />} />
             <Route element={<ProtectedRoute />}>

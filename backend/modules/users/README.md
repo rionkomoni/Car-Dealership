@@ -32,15 +32,19 @@ si dhe ndryshim i fjalëkalimit me verifikim (current password).
 
 - Ngjarje: `profile_read`, `admin_list`, `admin_create`, `admin_update`, `admin_delete` përmes `moduleLogger` (`module:users`).
 
-## Email konfigurimi (SMTP ose SendGrid)
+## Email konfigurimi (SMTP, SendGrid ose Mailtrap)
 
-- `EMAIL_PROVIDER=smtp` ose `EMAIL_PROVIDER=sendgrid`
+- `EMAIL_PROVIDER=smtp` ose `EMAIL_PROVIDER=sendgrid` ose `EMAIL_PROVIDER=mailtrap`
 - SMTP:
   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`
   - `SMTP_FROM` (opsional)
 - SendGrid:
   - `SENDGRID_API_KEY`
   - `SENDGRID_FROM`
+- Mailtrap API:
+  - `MAILTRAP_API_TOKEN`
+  - `MAILTRAP_FROM_EMAIL`
+  - `MAILTRAP_FROM_NAME` (opsional)
 - `PUBLIC_API_URL` (p.sh. `http://localhost:5000`) për linkun e aktivizimit
 - `PUBLIC_APP_URL` (p.sh. `http://localhost:3000`) për linkun e reset-password
 - `EXPOSE_ACTIVATION_LINK=true` dhe `EXPOSE_PASSWORD_RESET_LINK=true` vetëm për development/testing (opsional)
