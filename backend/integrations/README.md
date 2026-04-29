@@ -62,6 +62,14 @@ Test endpoints:
 - `GET /api/v1/integrations/messaging/status`
 - `POST /api/v1/integrations/messaging/test-event`
 
+### 1.1) Strategic caching (Redis with memory fallback)
+
+- Cache middleware: `backend/middleware/cache.js`
+- Current car endpoints already cached via `apicache`.
+- Modes:
+  - default memory cache
+  - Redis cache if `REDIS_URL` is set (e.g. `redis://localhost:6379`)
+
 ### 2) Synchronous modular calls (REST)
 
 - File: `backend/integrations/internalApiClient.js`
@@ -76,6 +84,20 @@ Test endpoints:
   - `CB_FAILURE_THRESHOLD` (default `3`)
   - `CB_COOLDOWN_MS` (default `15000`)
   - `CB_REQUEST_TIMEOUT_MS` (default `4000`)
+
+## API Rate Limiting
+
+- Global limiter: `app.use("/api", apiLimiter)`
+- Stricter auth limiter:
+  - `/api/auth/login`
+  - `/api/auth/register`
+- Password reset limiter:
+  - `/api/users/password/reset/request`
+
+Env configuration:
+- `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX`
+- `AUTH_RATE_LIMIT_WINDOW_MS`, `AUTH_RATE_LIMIT_MAX`
+- `PASSWORD_RESET_RATE_LIMIT_WINDOW_MS`, `PASSWORD_RESET_RATE_LIMIT_MAX`
 
 ## Extended architecture (description only — not implemented in this repo)
 

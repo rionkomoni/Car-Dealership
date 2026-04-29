@@ -4,6 +4,7 @@ const {
   getV1HealthWithBreaker,
   getBreakerState,
 } = require("../../integrations/internalApiClient");
+const { getCacheStatus } = require("../../middleware/cache");
 
 const router = express.Router();
 
@@ -11,6 +12,7 @@ router.get("/messaging/status", (req, res) => {
   return res.json({
     status: "ok",
     bus: getMessageBusStatus(),
+    cache: getCacheStatus(),
   });
 });
 

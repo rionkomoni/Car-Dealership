@@ -5,6 +5,7 @@ const Joi = require("joi");
 const pool = require("../config/mysql");
 const { generateRefreshToken, hashToken, parseTtlMs } = require("../lib/tokens");
 const { saveAuditLog, auditContextFromReq } = require("../services/auditService");
+const { authLimiter } = require("../middleware/rateLimiter");
 
 const router = express.Router();
 
@@ -25,7 +26,7 @@ function toRoleClaim(role) {
   return r.startsWith("ROLE_") ? r : `ROLE_${r}`;
 }
 
-router.post("/register", async (req, res) => {
+router.post("/register", authLimiter, async (req, res) => {
   const schema = Joi.object({
     name: Joi.string().min(2).required(),
     email: Joi.string()
@@ -74,7 +75,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
-router.post("/login", async (req, res) => {
+router.post("/login", authLimiter, async (req, res) => {
   const schema = Joi.object({
     email: Joi.string()
       .trim()
