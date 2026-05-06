@@ -1,0 +1,62 @@
+nameOverride: ""
+fullnameOverride: ""
+
+backend:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/example/car-dealership/backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 5000
+  resources:
+    requests:
+      cpu: 150m
+      memory: 256Mi
+    limits:
+      cpu: 700m
+      memory: 768Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+  env:
+    PORT: "5000"
+    NODE_ENV: production
+    MESSAGE_BROKER: local
+  secretEnv:
+    JWT_SECRET: "replace-me"
+    MYSQL_HOST: "replace-me"
+    MYSQL_USER: "replace-me"
+    MYSQL_PASSWORD: "replace-me"
+    MYSQL_DB: "replace-me"
+    MONGO_URI: "replace-me"
+
+frontend:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/example/car-dealership/frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    requests:
+      cpu: 80m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 384Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 65
+
+ingress:
+  enabled: true
+  className: nginx
+  host: car-dealership.local

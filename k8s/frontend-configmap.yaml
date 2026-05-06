@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: car-dealership
+data:
+  NGINX_ENTRYPOINT_QUIET_LOGS: "1"

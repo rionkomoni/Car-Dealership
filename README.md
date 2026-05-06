@@ -136,11 +136,82 @@ Më shumë: [backend/integrations/README.md](backend/integrations/README.md).
 
 Nëse `REACT_APP_API_URL` nuk është vendosur, CRA proxy (nëse ekziston në `frontend/package.json`) dërgon `/api` te backend-i lokal.
 
+## Dockerize komponentët (Phase 5.1)
+
+- Backend image:
+  - `docker build -f backend/Dockerfile -t car-dealership-backend .`
+  - `docker run --env-file backend/.env -p 5000:5000 car-dealership-backend`
+- Frontend image:
+  - `docker build -f frontend/Dockerfile -t car-dealership-frontend .`
+  - `docker run -p 3000:80 car-dealership-frontend`
+
+## HTTPS gjithmonë aktiv (dev + prod)
+
+- Gateway (`deploy/nginx/api-gateway.conf`) bën redirect `80 -> 443`.
+- TLS endpoint:
+  - `https://localhost:8443`
+- Backend enforce HTTPS kur:
+  - `FORCE_HTTPS=true` (në `docker-compose.gateway.yml` është aktiv).
+
+### Dev (self-signed cert)
+
+Gjenero cert lokal në `deploy/nginx/certs/`:
+
+```bash
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout deploy/nginx/certs/tls.key \
+  -out deploy/nginx/certs/tls.crt \
+  -subj "/CN=localhost"
+```
+
+Pastaj:
+
+```bash
+docker compose -f docker-compose.gateway.yml up -d
+```
+
+### Prod (Let's Encrypt)
+
+- Përdor certbot për të gjeneruar `fullchain.pem` + `privkey.pem`.
+- Vendos cert-at si `tls.crt` / `tls.key` në mount path të gateway.
+- Mbaj renew periodik (`certbot renew`) dhe reload gateway pas renew.
+
+## Kubernetes orchestration (auto-scaling + load-balancing + rolling updates)
+
+- Manifestet janë në `k8s/`
+- Përfshin:
+  - `Deployment` për backend/frontend me `RollingUpdate`
+  - `Service` për load balancing brenda cluster-it
+  - `HorizontalPodAutoscaler (HPA)` për autoscaling
+  - `Ingress` për routing `/api` -> backend dhe `/` -> frontend
+- Udhëzimet e plota: `k8s/README.md`
+
+## CI/CD Pipelines (GitHub Actions + Helm)
+
+- Workflow: `.github/workflows/ci-cd.yml`
+- Fazat:
+  - Linting + Unit tests
+  - Build & push Docker images (GHCR)
+  - Deploy në test environment (Helm)
+  - Run integration tests (Newman)
+  - Deploy në staging dhe production (Helm charts)
+- Helm chart:
+  - `helm/car-dealership/` me `values-test.yaml`, `values-staging.yaml`, `values-prod.yaml`
+- Quickstart praktik:
+  - `docs/ci-cd-quickstart.md`
+
+Secrets të nevojshme në GitHub:
+- `KUBE_CONFIG_TEST`
+- `KUBE_CONFIG_STAGING`
+- `KUBE_CONFIG_PROD`
+- `TEST_BASE_URL`
+
 ## Testim dhe validim (Phase III)
 
 - Unit + integration coverage: `npm run test:coverage`
 - E2E (Cypress): `npm run test:e2e:run`
 - Performance/load (Autocannon): `npm run test:performance`
+- Performance 1000+ users preset: `npm run test:performance:1k`
 - Full QA pipeline: `npm run qa:full`
 
 Parametra të load test:
@@ -149,6 +220,21 @@ Parametra të load test:
 - `LOAD_TEST_CONNECTIONS` (default: `50`)
 - `LOAD_TEST_MAX_AVG_LATENCY_MS` (default: `500`)
 - `LOAD_TEST_MIN_AVG_RPS` (default: `20`)
+
+## Monitorim dhe Observability
+
+- Structured module logging shkruhet në console **dhe** file: `backend/logs/application.log`
+- Prometheus metrics endpoint: `GET /metrics` (format i gatshëm për scrape)
+- API live health dashboard (express-status-monitor): `GET /status`
+- Stack i centralizimit të log-ëve (Loki + Promtail + Grafana) është në:
+  - `deploy/monitoring/loki-config.yml`
+  - `deploy/monitoring/promtail-config.yml`
+  - `deploy/monitoring/grafana-datasources.yml`
+- Nisje e plotë:
+  - `docker compose -f docker-compose.gateway.yml up -d`
+- UI:
+  - Grafana: `http://localhost:3001` (default `admin/admin`)
+  - Loki API: `http://localhost:3100`
 
 ## Çfarë të instalosh për të punuar në projekt (mjedis real)
 
@@ -168,6 +254,7 @@ Opsionale: **Postman** ose **Thunder Client** për të testuar `GET/POST` te `ht
 
 Opsionale për enterprise setup:
 - RabbitMQ + Redis + Consul me `docker compose -f docker-compose.gateway.yml up`
+- Loki + Promtail + Grafana për centralizim log-esh me të njëjtin compose file
 - Kafka/gRPC mbeten opcionale dhe nuk kërkohen për ekzekutim lokal të këtij monolithi.
 
 ## Kërkesë akademike: komunikim ndër-shërbim (vetëm përshkrim, jo në kod)

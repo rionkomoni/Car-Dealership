@@ -1,0 +1,203 @@
+name: CI-CD Pipeline
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BACKEND: ${{ github.repository }}/backend
+  IMAGE_FRONTEND: ${{ github.repository }}/frontend
+  HELM_CHART_PATH: helm/car-dealership
+
+jobs:
+  ci:
+    name: Lint + Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (if configured)
+        run: npm run lint --if-present
+
+      - name: Unit and API tests
+        run: npm test
+
+  docker_build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: ci
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_BACKEND }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_FRONTEND }}
+          tags: |
+            type=sha
+            type=ref,event=branch
+            type=ref,event=tag
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_BACKEND }}:${{ github.sha }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_FRONTEND }}:${{ github.sha }}
+
+  deploy_test:
+    name: Deploy to Test Environment
+    runs-on: ubuntu-latest
+    needs: docker_build
+    if: github.event_name != 'pull_request' && secrets.KUBE_CONFIG_TEST != ''
+    environment: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.30.0
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.15.2
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG_TEST }}" > "$HOME/.kube/config"
+
+      - name: Helm upgrade test
+        run: |
+          helm upgrade --install car-dealership-test "${HELM_CHART_PATH}" \
+            --namespace car-dealership-test --create-namespace \
+            --values "${HELM_CHART_PATH}/values-test.yaml" \
+            --set backend.image.repository="${REGISTRY}/${IMAGE_BACKEND}" \
+            --set backend.image.tag="${GITHUB_SHA}" \
+            --set frontend.image.repository="${REGISTRY}/${IMAGE_FRONTEND}" \
+            --set frontend.image.tag="${GITHUB_SHA}"
+
+  integration_tests:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    needs: deploy_test
+    if: needs.deploy_test.result == 'success'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare Newman environment
+        run: |
+          node -e "const fs=require('fs');const p='tests/postman/local.postman_environment.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));const base=process.env.TEST_BASE_URL||'http://localhost:5000';j.values=j.values.map(v=>v.key==='baseUrl'?{...v,value:base}:v);fs.writeFileSync('tests/postman/ci.postman_environment.json',JSON.stringify(j,null,2));"
+        env:
+          TEST_BASE_URL: ${{ secrets.TEST_BASE_URL }}
+
+      - name: Run Newman integration tests
+        run: npx newman run tests/postman/Car-Dealership.postman_collection.json -e tests/postman/ci.postman_environment.json
+        env:
+          TEST_BASE_URL: ${{ secrets.TEST_BASE_URL }}
+
+  deploy_staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: integration_tests
+    if: github.ref == 'refs/heads/main' && needs.integration_tests.result == 'success' && secrets.KUBE_CONFIG_STAGING != ''
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: v1.30.0
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.15.2
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG_STAGING }}" > "$HOME/.kube/config"
+      - name: Helm upgrade staging
+        run: |
+          helm upgrade --install car-dealership-staging "${HELM_CHART_PATH}" \
+            --namespace car-dealership-staging --create-namespace \
+            --values "${HELM_CHART_PATH}/values-staging.yaml" \
+            --set backend.image.repository="${REGISTRY}/${IMAGE_BACKEND}" \
+            --set backend.image.tag="${GITHUB_SHA}" \
+            --set frontend.image.repository="${REGISTRY}/${IMAGE_FRONTEND}" \
+            --set frontend.image.tag="${GITHUB_SHA}"
+
+  deploy_production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy_staging
+    if: startsWith(github.ref, 'refs/tags/v') && needs.deploy_staging.result == 'success' && secrets.KUBE_CONFIG_PROD != ''
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: v1.30.0
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.15.2
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG_PROD }}" > "$HOME/.kube/config"
+      - name: Helm upgrade production
+        run: |
+          helm upgrade --install car-dealership-prod "${HELM_CHART_PATH}" \
+            --namespace car-dealership-prod --create-namespace \
+            --values "${HELM_CHART_PATH}/values-prod.yaml" \
+            --set backend.image.repository="${REGISTRY}/${IMAGE_BACKEND}" \
+            --set backend.image.tag="${GITHUB_SHA}" \
+            --set frontend.image.repository="${REGISTRY}/${IMAGE_FRONTEND}" \
+            --set frontend.image.tag="${GITHUB_SHA}"

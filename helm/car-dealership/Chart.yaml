@@ -1,0 +1,6 @@
+apiVersion: v2
+name: car-dealership
+description: Car Dealership full-stack deployment chart
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

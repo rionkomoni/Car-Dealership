@@ -3,12 +3,16 @@ services:
     image: node:20
     working_dir: /app
     command: sh -c "npm install && npm start"
-    volumes:
-      - ./:/app
     ports:
       - "5000:5000"
     env_file:
       - ./backend/.env
+    environment:
+      - LOG_FILE_PATH=/var/log/car-dealership/application.log
+      - FORCE_HTTPS=true
+    volumes:
+      - ./:/app
+      - ./backend/logs:/var/log/car-dealership
 
   gateway:
     image: nginx:1.27-alpine
@@ -16,8 +20,10 @@ services:
       - backend
     ports:
       - "8080:80"
+      - "8443:443"
     volumes:
       - ./deploy/nginx/api-gateway.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/certs:/etc/nginx/certs:ro
 
   consul:
     image: hashicorp/consul:1.19
@@ -35,3 +41,29 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+
+  loki:
+    image: grafana/loki:3.0.0
+    command: -config.file=/etc/loki/config.yml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./deploy/monitoring/loki-config.yml:/etc/loki/config.yml:ro
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    volumes:
+      - ./deploy/monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
+      - ./backend/logs:/var/log/car-dealership:ro
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    depends_on:
+      - loki
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./deploy/monitoring/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro

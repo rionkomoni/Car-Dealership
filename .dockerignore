@@ -1,0 +1,9 @@
+node_modules
+frontend/node_modules
+frontend/build
+coverage
+.git
+.cursor
+**/*.log
+backend/.env
+.env

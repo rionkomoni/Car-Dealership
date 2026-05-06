@@ -4,11 +4,15 @@ require("dotenv").config({ path: path.join(__dirname, ".env") });
 const mysql = require("mysql2/promise");
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
 const mongoose = require("mongoose");
 const swaggerUi = require("swagger-ui-express");
+const statusMonitor = require("express-status-monitor");
+const promClient = require("prom-client");
 const pool = require("./config/mysql");
 const connectMongo = require("./config/mongo");
 const apiLimiter = require("./middleware/rateLimiter");
+const securitySanitizer = require("./middleware/securitySanitizer");
 const attachUserFromToken = require("./middleware/attachUserFromToken");
 const openApiSpec = require("./docs/openapi");
 const { getServiceRegistry } = require("./integrations/serviceRegistry");
@@ -33,9 +37,71 @@ const { seedAdminUser } = require("./db/seedAdmin");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
+const forceHttps = String(process.env.FORCE_HTTPS || "false").toLowerCase() === "true";
+
+const metricsRegistry = new promClient.Registry();
+promClient.collectDefaultMetrics({ register: metricsRegistry });
+const httpRequestDurationMs = new promClient.Histogram({
+  name: "http_request_duration_ms",
+  help: "HTTP request duration in ms",
+  labelNames: ["method", "route", "status_code"],
+  buckets: [5, 10, 25, 50, 100, 250, 500, 1000, 2000],
+  registers: [metricsRegistry],
+});
+const httpRequestsTotal = new promClient.Counter({
+  name: "http_requests_total",
+  help: "Total HTTP requests",
+  labelNames: ["method", "route", "status_code"],
+  registers: [metricsRegistry],
+});
+
+app.use(
+  statusMonitor({
+    path: "/status",
+    title: "Car Dealership - API Status",
+    spans: [
+      { interval: 1, retention: 60 },
+      { interval: 5, retention: 60 },
+      { interval: 15, retention: 60 },
+    ],
+    chartVisibility: {
+      cpu: true,
+      mem: true,
+      load: true,
+      responseTime: true,
+      rps: true,
+      statusCodes: true,
+    },
+  })
+);
 
 app.use(cors());
+app.use(helmet());
+app.enable("trust proxy");
 app.use(express.json());
+app.use(securitySanitizer);
+app.use((req, res, next) => {
+  if (!forceHttps) return next();
+  if (req.secure) return next();
+  if (String(req.headers["x-forwarded-proto"]).toLowerCase() === "https") return next();
+  const host = req.headers.host || "localhost";
+  return res.redirect(301, `https://${host}${req.originalUrl}`);
+});
+app.use((req, res, next) => {
+  const start = process.hrtime.bigint();
+  res.on("finish", () => {
+    const durationMs = Number(process.hrtime.bigint() - start) / 1e6;
+    const route = req.route?.path || req.baseUrl || req.path || "unknown";
+    const labels = {
+      method: req.method,
+      route: String(route),
+      status_code: String(res.statusCode),
+    };
+    httpRequestDurationMs.observe(labels, durationMs);
+    httpRequestsTotal.inc(labels);
+  });
+  next();
+});
 app.use("/api", apiLimiter);
 app.use("/api", attachUserFromToken);
 
@@ -73,6 +139,15 @@ app.get("/ready", async (req, res) => {
 
   const statusCode = readiness.status === "ready" ? 200 : 503;
   return res.status(statusCode).json(readiness);
+});
+
+app.get("/metrics", async (req, res) => {
+  try {
+    res.set("Content-Type", metricsRegistry.contentType);
+    return res.end(await metricsRegistry.metrics());
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
 });
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiSpec));
