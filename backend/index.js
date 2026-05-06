@@ -7,7 +7,6 @@ const cors = require("cors");
 const helmet = require("helmet");
 const mongoose = require("mongoose");
 const swaggerUi = require("swagger-ui-express");
-const statusMonitor = require("express-status-monitor");
 const promClient = require("prom-client");
 const pool = require("./config/mysql");
 const connectMongo = require("./config/mongo");
@@ -39,6 +38,21 @@ const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 const forceHttps = String(process.env.FORCE_HTTPS || "false").toLowerCase() === "true";
 
+/** Trust only N proxy hops (not `true`), so express-rate-limit stays safe + tests stay quiet. */
+const trustProxyHopsRaw = process.env.TRUST_PROXY_HOPS;
+const trustProxyHops =
+  trustProxyHopsRaw !== undefined && trustProxyHopsRaw !== ""
+    ? Number(trustProxyHopsRaw)
+    : forceHttps
+      ? 1
+      : 0;
+if (trustProxyHops > 0) {
+  app.set("trust proxy", trustProxyHops);
+}
+
+const enableStatusMonitor =
+  process.env.NODE_ENV !== "test" && process.env.DISABLE_STATUS_MONITOR !== "true";
+
 const metricsRegistry = new promClient.Registry();
 promClient.collectDefaultMetrics({ register: metricsRegistry });
 const httpRequestDurationMs = new promClient.Histogram({
@@ -55,29 +69,31 @@ const httpRequestsTotal = new promClient.Counter({
   registers: [metricsRegistry],
 });
 
-app.use(
-  statusMonitor({
-    path: "/status",
-    title: "Car Dealership - API Status",
-    spans: [
-      { interval: 1, retention: 60 },
-      { interval: 5, retention: 60 },
-      { interval: 15, retention: 60 },
-    ],
-    chartVisibility: {
-      cpu: true,
-      mem: true,
-      load: true,
-      responseTime: true,
-      rps: true,
-      statusCodes: true,
-    },
-  })
-);
+if (enableStatusMonitor) {
+  const statusMonitor = require("express-status-monitor");
+  app.use(
+    statusMonitor({
+      path: "/status",
+      title: "Car Dealership - API Status",
+      spans: [
+        { interval: 1, retention: 60 },
+        { interval: 5, retention: 60 },
+        { interval: 15, retention: 60 },
+      ],
+      chartVisibility: {
+        cpu: true,
+        mem: true,
+        load: true,
+        responseTime: true,
+        rps: true,
+        statusCodes: true,
+      },
+    })
+  );
+}
 
 app.use(cors());
 app.use(helmet());
-app.enable("trust proxy");
 app.use(express.json());
 app.use(securitySanitizer);
 app.use((req, res, next) => {
