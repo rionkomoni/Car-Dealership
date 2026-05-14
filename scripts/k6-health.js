@@ -1,13 +1,4 @@
-/**
- * Load test i thjeshtë — nuk kërkon ndryshime në backend.
- * Synon /health (jashtë /api, pra nuk godet rate limiter-in e API-së).
- *
- * Ekzekutim (PowerShell):
- *   $env:BASE_URL="http://localhost:5000"; k6 run scripts/k6-health.js
- *
- * Ose me Docker / host tjetër:
- *   $env:BASE_URL="http://127.0.0.1:5000"; k6 run scripts/k6-health.js
- */
+
 import http from "k6/http";
 import { check, sleep } from "k6";
 
