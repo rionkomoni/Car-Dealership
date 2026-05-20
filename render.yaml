@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: car-dealership
+    env: node
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: npm ci && cd frontend && npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FORCE_HTTPS
+        value: "true"
+      - key: PORT
+        value: "10000"
+      - key: MONGO_URI
+        fromSecret: mongo-uri
+      - key: MYSQL_HOST
+        fromSecret: mysql-host
+      - key: MYSQL_USER
+        fromSecret: mysql-user
+      - key: MYSQL_PASSWORD
+        fromSecret: mysql-password
+      - key: MYSQL_DB
+        fromSecret: mysql-db
+      - key: JWT_SECRET
+        fromSecret: jwt-secret
+      - key: REACT_APP_API_URL
+        value: ""

@@ -64,6 +64,31 @@ Gateway: http://localhost:8080 · Grafana: http://localhost:3001
 - Manifeste: `k8s/` · Helm: `helm/car-dealership/`
 - Pipeline: `.github/workflows/ci-cd.yml`
 
+## Render deployment
+
+- Konfigurimi për Render është në `render.yaml`
+- Backend: `car-dealership-backend`
+- Frontend: `car-dealership-frontend`
+- Custom domain në Render mund të konfigurohet pas deploy
+- Në frontend vendos `REACT_APP_API_URL` në URL-në e backend-it të Render
+
+### Si të përdorësh Render
+
+1. Regjistrohu në https://render.com
+2. Krijo një projekt nga GitHub dhe zgjidh branch `main`
+3. Përdor `render.yaml` për të krijuar shërbimet:
+   - `car-dealership-backend` (web service)
+   - `car-dealership-frontend` (static site)
+4. Shto sekretet në tab-in `Environment` të backend:
+   - `MONGO_URI`
+   - `MYSQL_HOST`
+   - `MYSQL_USER`
+   - `MYSQL_PASSWORD`
+   - `MYSQL_DB`
+   - `JWT_SECRET`
+5. Në `car-dealership-frontend` vendos `REACT_APP_API_URL` për adresën reale të backend-it
+6. Për domain personal, shto `Custom Domain` në secilin service dhe ndiq udhëzimet e Render
+
 ## API & monitoring
 
 | URL | Përshkrim |

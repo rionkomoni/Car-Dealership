@@ -1,0 +1,17 @@
+node_modules
+frontend/node_modules
+backend/node_modules
+frontend/build
+build
+coverage
+.env
+*.log
+backend/logs
+deploy/nginx/certs
+docker-compose*.yml
+docker-compose*.yaml
+k8s/
+helm/
+tests/
+cypress/
+README.md
