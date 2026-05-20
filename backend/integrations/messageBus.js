@@ -46,8 +46,26 @@ async function publishEvent(eventName, payload) {
   return { delivered: true, mode: "local" };
 }
 
-function subscribeEvent(eventName, handler) {
+async function subscribeEvent(eventName, handler) {
+  if (activeMode === "rabbitmq" && channel) {
+    const queueName = `cd.${eventName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+    const q = await channel.assertQueue(queueName, { durable: true });
+    await channel.bindQueue(q.queue, exchangeName, eventName);
+    channel.consume(q.queue, (msg) => {
+      if (!msg) return;
+      try {
+        const envelope = JSON.parse(msg.content.toString());
+        handler(envelope);
+        channel.ack(msg);
+      } catch (err) {
+        console.warn(`RabbitMQ consumer error (${eventName}):`, err.message);
+        channel.nack(msg, false, false);
+      }
+    });
+    return { mode: "rabbitmq", queue: queueName };
+  }
   localBus.on(eventName, handler);
+  return { mode: "local" };
 }
 
 function getMessageBusStatus() {

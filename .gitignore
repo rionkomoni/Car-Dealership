@@ -15,3 +15,13 @@ coverage/
 
 # Git merge backup files
 *.orig
+
+# Uploaded car images (keep folder marker)
+backend/uploads/**
+!backend/uploads/cars/
+!backend/uploads/cars/.gitkeep
+
+# Uploaded car images (keep folder marker)
+backend/uploads/**
+!backend/uploads/cars/
+!backend/uploads/cars/.gitkeep

@@ -5,6 +5,7 @@ const auth = require("../middleware/auth");
 const requireAdmin = require("../middleware/requireAdmin");
 const { saveCarLog } = require("../services/carLogService");
 const { cache, clearApiCache } = require("../middleware/cache");
+const { withCarLinks, paginationLinks } = require("../lib/hateoas");
 const InventoryCar = require("../domain/entities/InventoryCar");
 const TradeInVehicle = require("../domain/entities/TradeInVehicle");
 const PurchaseQuote = require("../domain/entities/PurchaseQuote");
@@ -91,13 +92,7 @@ function shapeCar(row) {
 }
 
 function withLinks(req, car) {
-  return {
-    ...car,
-    _links: {
-      self: { href: `${req.baseUrl}/${car.id}` },
-      collection: { href: req.baseUrl },
-    },
-  };
+  return withCarLinks(req, car);
 }
 
 function normalizeSpecs(body) {
@@ -204,18 +199,18 @@ router.get("/", cache("2 minutes"), async (req, res) => {
       `SELECT COUNT(*) AS total FROM cars ${whereSql}`,
       params
     );
+    const total = Number(countRow.total || 0);
+    const totalPages = Math.max(1, Math.ceil(total / safePageSize));
     const items = cars.map((car) => withLinks(req, shapeCar(car)));
     return res.json({
       data: items,
       meta: {
-        total: Number(countRow.total || 0),
+        total,
         page: safePage,
         pageSize: safePageSize,
-        totalPages: Math.max(1, Math.ceil(Number(countRow.total || 0) / safePageSize)),
+        totalPages,
       },
-      _links: {
-        self: { href: req.baseUrl },
-      },
+      _links: paginationLinks(req, { page: safePage, totalPages }),
     });
   } catch (err) {
     return res.status(500).json({ message: err.message });

@@ -24,9 +24,18 @@ async function revokeRefreshToken(id, replacedByTokenId = null) {
   return result.affectedRows > 0;
 }
 
+async function revokeRefreshTokenByHash(tokenHash) {
+  const [result] = await pool.query(
+    "UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = ? AND revoked_at IS NULL",
+    [tokenHash]
+  );
+  return result.affectedRows;
+}
+
 module.exports = {
   insertRefreshToken,
   findRefreshTokenByHash,
   revokeRefreshToken,
+  revokeRefreshTokenByHash,
 };
 

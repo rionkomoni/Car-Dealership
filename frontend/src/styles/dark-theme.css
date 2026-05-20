@@ -1,0 +1,121 @@
+/* Dark mode — aktivizohet me data-theme="dark" në <html> */
+
+[data-theme="dark"] {
+  --ink: #eef0f4;
+  --ink-soft: #1a2030;
+  --surface: #0a0d12;
+  --surface-elevated: #121820;
+  --muted: #9aa3b5;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --bg: #0a0d12;
+  --text: #eef0f4;
+  --card: #151b26;
+  --header-bg: rgba(8, 10, 14, 0.94);
+  --link: #8ab4f8;
+}
+
+[data-theme="dark"] body {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse 100% 60% at 80% 0%, rgba(201, 162, 39, 0.06), transparent 50%),
+    linear-gradient(180deg, #0a0d12 0%, #0f141c 100%);
+}
+
+[data-theme="dark"] .auth-card,
+[data-theme="dark"] .home-listing-card,
+[data-theme="dark"] .showroom-platform-card,
+[data-theme="dark"] .showroom-why-card {
+  background: var(--card);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .field-input,
+[data-theme="dark"] .showroom-search-input {
+  background: #1c2433;
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+[data-theme="dark"] .showroom-search-inner {
+  background: rgba(21, 27, 38, 0.95);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .home-listing-action--detail {
+  background: #1a2230;
+  color: var(--text);
+}
+
+[data-theme="dark"] .car-gallery-thumbs,
+[data-theme="dark"] .car-gallery-hint {
+  background: rgba(21, 27, 38, 0.98);
+}
+
+[data-theme="dark"] .car-detail-media {
+  background: #1a2230;
+}
+
+[data-theme="dark"] .showroom-hero-bg::after {
+  background: linear-gradient(
+    105deg,
+    rgba(8, 10, 14, 0.95) 0%,
+    rgba(8, 10, 14, 0.7) 40%,
+    rgba(8, 10, 14, 0.35) 100%
+  );
+}
+
+[data-theme="dark"] .filter-panel {
+  background: linear-gradient(135deg, #151b26 0%, #121820 100%);
+}
+
+[data-theme="dark"] .btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+[data-theme="dark"] .btn-ghost:hover {
+  background: rgba(201, 162, 39, 0.12);
+}
+
+[data-theme="dark"] .theme-toggle {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--gold-light);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition);
+}
+
+[data-theme="dark"] .theme-toggle:hover,
+.theme-toggle:hover {
+  background: rgba(201, 162, 39, 0.15);
+}
+
+.theme-toggle {
+  border: 1px solid var(--border-strong);
+  background: var(--card);
+  color: var(--ink);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.35rem;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .showroom-skeleton-card {
+  background: linear-gradient(90deg, #1a2230 25%, #252d3d 50%, #1a2230 75%);
+  background-size: 200% 100%;
+}

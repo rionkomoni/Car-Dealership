@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
+import ImageUploadField from "../components/ImageUploadField";
 import api from "../api";
 
 export default function AddCar() {
@@ -32,11 +33,16 @@ export default function AddCar() {
       return;
     }
 
+    if (!image.trim()) {
+      setError("Vendosni URL foto ose ngarkoni një imazh.");
+      return;
+    }
+
     const payload = {
       name,
       price: priceNum,
       year: yearNum,
-      image,
+      image: image.trim(),
     };
 
     if (mileageKm.trim() !== "") {
@@ -116,17 +122,40 @@ export default function AddCar() {
               required
             />
           </label>
+          <ImageUploadField
+            label="Ngarko foto kryesore (skedar)"
+            hint="JPEG/PNG/WebP, max 5MB. Ruhet në server."
+            onUploaded={(path) => setImage(path)}
+          />
           <label className="field-label">
-            Image URL
+            Image URL (ose përdoret pas ngarkimit)
             <input
               className="field-input"
-              type="url"
-              placeholder="https://..."
+              type="text"
+              placeholder="https://... ose /uploads/cars/..."
               value={image}
               onChange={(e) => setImage(e.target.value)}
-              required
             />
           </label>
+          {image ? (
+            <p className="upload-preview-wrap">
+              <img src={image} alt="Parapamje" className="upload-preview" />
+            </p>
+          ) : null}
+          <ImageUploadField
+            label="Ngarko foto shtesë për galeri"
+            multiple
+            hint="Mund të zgjidhni disa foto njëherësh."
+            onUploaded={(paths) => {
+              setGalleryRaw((prev) => {
+                const lines = prev
+                  .split(/\n/)
+                  .map((s) => s.trim())
+                  .filter(Boolean);
+                return [...lines, ...paths].join("\n");
+              });
+            }}
+          />
           <label className="field-label">
             Extra photo URLs (optional, one per line)
             <textarea

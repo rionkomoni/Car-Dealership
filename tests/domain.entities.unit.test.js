@@ -1,3 +1,4 @@
+const AbstractVehicle = require("../backend/domain/entities/AbstractVehicle");
 const InventoryCar = require("../backend/domain/entities/InventoryCar");
 const TradeInVehicle = require("../backend/domain/entities/TradeInVehicle");
 const PurchaseQuote = require("../backend/domain/entities/PurchaseQuote");
@@ -58,6 +59,20 @@ describe("domain entities (phase 5)", () => {
     expect(quote.calculateAmountToAdd()).toBe(0);
   });
 
+  test("purchase without trade-in has zero trade value", () => {
+    const car = new InventoryCar({
+      id: 14,
+      name: "Fiat 500",
+      year: 2019,
+      price: 9000,
+      sold_out: 0,
+      mileage_km: 60000,
+    });
+    const quote = new PurchaseQuote({ inventoryCar: car });
+    expect(quote.getTradeInValue()).toBe(0);
+    expect(quote.calculateAmountToAdd()).toBe(9000);
+  });
+
   test("throws when trade-in value is unrealistically high", () => {
     const car = new InventoryCar({
       id: 13,
@@ -92,6 +107,49 @@ describe("domain entities (phase 5)", () => {
       trade_in_mileage_km: 110000,
       trade_in_value: 6000,
     });
+  });
+
+  test("AbstractVehicle cannot be instantiated directly", () => {
+    expect(
+      () =>
+        new AbstractVehicle({
+          name: "X",
+          year: 2020,
+        })
+    ).toThrow(/cannot be instantiated directly/i);
+  });
+
+  test("getSummary marks sold-out inventory cars", () => {
+    const sold = new InventoryCar({
+      id: 2,
+      name: "BMW M4",
+      year: 2023,
+      price: 78000,
+      sold_out: 1,
+      mileage_km: 5000,
+    });
+    expect(sold.getSummary()).toMatch(/\[SOLD\]/);
+  });
+
+  test("getSummary is polymorphic across vehicle subclasses", () => {
+    const inventory = new InventoryCar({
+      id: 1,
+      name: "Audi Q8",
+      year: 2022,
+      price: 50000,
+      sold_out: 0,
+      mileage_km: 10000,
+    });
+    const tradeIn = new TradeInVehicle({
+      current_car: "Golf",
+      year: 2015,
+      mileage_km: 90000,
+      estimated_value: 5000,
+    });
+
+    const summaries = [inventory, tradeIn].map((v) => v.getSummary());
+    expect(summaries[0]).toMatch(/€50000/);
+    expect(summaries[1]).toMatch(/Trade-in/i);
   });
 
   test("throws when inventory car id is invalid", () => {

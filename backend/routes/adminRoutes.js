@@ -1,4 +1,5 @@
 const express = require("express");
+const Joi = require("joi");
 const mongoose = require("mongoose");
 const pool = require("../config/mysql");
 const requireAdmin = require("../middleware/requireAdmin");
@@ -86,6 +87,72 @@ router.get("/audit-logs", async (req, res) => {
     }
     const logs = await auditLogRepository.listAuditLogs(300);
     return res.json(logs);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+router.get("/charts", async (req, res) => {
+  try {
+    let purchasesByMonth = [];
+    let inventoryByStatus = { available: 0, sold: 0 };
+    let testDrivesByStatus = [];
+    let topBodyTypes = [];
+
+    try {
+      const [monthly] = await pool.query(
+        `SELECT DATE_FORMAT(created_at, '%Y-%m') AS label, COUNT(*) AS value
+         FROM purchases
+         GROUP BY label
+         ORDER BY label DESC
+         LIMIT 6`
+      );
+      purchasesByMonth = monthly.reverse();
+    } catch (err) {
+      if (err.code !== "ER_NO_SUCH_TABLE") throw err;
+    }
+
+    const [[avail]] = await pool.query(
+      "SELECT COUNT(*) AS c FROM cars WHERE sold_out = 0 OR sold_out IS NULL"
+    );
+    const [[sold]] = await pool.query(
+      "SELECT COUNT(*) AS c FROM cars WHERE sold_out = 1"
+    );
+    inventoryByStatus = {
+      available: Number(avail?.c || 0),
+      sold: Number(sold?.c || 0),
+    };
+
+    try {
+      const [td] = await pool.query(
+        `SELECT status AS label, COUNT(*) AS value
+         FROM test_drive_requests
+         GROUP BY status
+         ORDER BY value DESC`
+      );
+      testDrivesByStatus = td;
+    } catch (err) {
+      if (err.code !== "ER_NO_SUCH_TABLE") throw err;
+    }
+
+    const [bodyRows] = await pool.query(
+      `SELECT COALESCE(NULLIF(TRIM(body_type), ''), 'Tjetër') AS label, COUNT(*) AS value
+       FROM cars
+       GROUP BY label
+       ORDER BY value DESC
+       LIMIT 6`
+    );
+    topBodyTypes = bodyRows;
+
+    const analytics = await businessLogicService.getAdminAnalyticsSnapshot().catch(() => null);
+
+    return res.json({
+      purchasesByMonth,
+      inventoryByStatus,
+      testDrivesByStatus,
+      topBodyTypes,
+      revenue: analytics,
+    });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -182,19 +249,25 @@ router.get("/test-drives", async (req, res) => {
   }
 });
 
-router.patch("/test-drives/:id/status", async (req, res) => {
-  const allowed = new Set(["pending", "scheduled", "completed", "cancelled"]);
-  const id = Number(req.params.id);
-  const status = String(req.body?.status || "").trim().toLowerCase();
+const testDriveStatusSchema = Joi.object({
+  status: Joi.string()
+    .valid("pending", "scheduled", "completed", "cancelled")
+    .required(),
+});
 
+router.patch("/test-drives/:id/status", async (req, res) => {
+  const id = Number(req.params.id);
   if (!Number.isInteger(id) || id <= 0) {
     return res.status(400).json({ message: "Invalid test-drive id." });
   }
-  if (!allowed.has(status)) {
-    return res.status(400).json({
-      message: "Status must be one of: pending, scheduled, completed, cancelled.",
-    });
+
+  const { error, value } = testDriveStatusSchema.validate(req.body, {
+    stripUnknown: true,
+  });
+  if (error) {
+    return res.status(400).json({ message: error.details[0].message });
   }
+  const status = value.status;
 
   try {
     const [rows] = await pool.query(

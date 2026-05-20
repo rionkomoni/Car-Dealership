@@ -2,41 +2,52 @@ import { useState } from "react";
 import { useDispatch } from "react-redux";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
+import ValidatedField from "../components/ui/ValidatedField";
 import api from "../api";
 import { setCredentials } from "../store/authSlice";
+import { loginSchema, useFormValidation } from "../hooks/useFormValidation";
 
 export default function Login() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState(() => location.state?.emailHint || "");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-
-  /** Pas kyçjes: faqja kryesore `/`, përveç nëse ke ardhur nga një faqe e mbrojtur (p.sh. Shto listim). */
   const from = location.state?.from || "/";
   const registerOk = location.state?.justRegistered;
+  const [apiError, setApiError] = useState("");
+
+  const form = useFormValidation(loginSchema, {
+    email: location.state?.emailHint || "",
+    password: "",
+  });
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError("");
+    setApiError("");
+    if (!form.validateAll()) return;
 
     try {
-      const { data } = await api.post("/api/auth/login", { email, password });
+      const { data } = await api.post("/api/auth/login", {
+        email: form.values.email,
+        password: form.values.password,
+      });
 
       if (data.success && data.token) {
         dispatch(
-          setCredentials({ token: data.token, user: data.user })
+          setCredentials({
+            token: data.token,
+            refreshToken: data.refreshToken,
+            user: data.user,
+          })
         );
         navigate(from, { replace: true });
         return;
       }
 
-      setError(data.message || "Login failed");
+      setApiError(data.message || "Login failed");
     } catch (err) {
-      const msg =
-        err.response?.data?.message || err.message || "Login failed";
-      setError(msg);
+      setApiError(
+        err.response?.data?.message || err.message || "Login failed"
+      );
     }
   };
 
@@ -49,35 +60,35 @@ export default function Login() {
           <strong>Admin</strong> (dashboard + contact inbox) and{" "}
           <strong>Car logs</strong>.
         </p>
-        <form className="auth-card" onSubmit={handleLogin}>
+        <form className="auth-card" onSubmit={handleLogin} noValidate>
           {registerOk ? (
             <p className="success-text">
               Llogaria u krijua. Kyçu me email-in dhe fjalëkalimin që zgjodhe.
             </p>
           ) : null}
-          {error && <p className="error-text">{error}</p>}
-          <label className="field-label">
-            Email
-            <input
-              className="field-input"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </label>
-          <label className="field-label">
-            Password
-            <input
-              className="field-input"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </label>
+          {apiError ? <p className="error-text">{apiError}</p> : null}
+          <ValidatedField
+            id="login-email"
+            label="Email"
+            type="email"
+            autoComplete="email"
+            value={form.values.email ?? ""}
+            onChange={form.handleChange("email")}
+            onBlur={form.handleBlur("email")}
+            error={form.fieldError("email")}
+            required
+          />
+          <ValidatedField
+            id="login-password"
+            label="Password"
+            type="password"
+            autoComplete="current-password"
+            value={form.values.password ?? ""}
+            onChange={form.handleChange("password")}
+            onBlur={form.handleBlur("password")}
+            error={form.fieldError("password")}
+            required
+          />
           <p className="form-footer" style={{ marginTop: "-0.2rem", marginBottom: "0.9rem" }}>
             <Link to="/forgot-password">Forgot password?</Link>
           </p>

@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package cardealership.v1;
+
+// Kontratë gRPC e përgatitur për ndarje microservice (nuk aktivizohet në monolith REST).
+// Gjenerim (shembull): protoc --js_out=. --grpc_out=. --plugin=protoc-gen-grpc=...
+
+option java_multiple_files = true;
+
+service CarCatalogService {
+  rpc GetCar (GetCarRequest) returns (CarMessage);
+  rpc ListCars (ListCarsRequest) returns (ListCarsResponse);
+}
+
+service PurchaseService {
+  rpc CreatePurchase (CreatePurchaseRequest) returns (PurchaseMessage);
+}
+
+message GetCarRequest {
+  int32 id = 1;
+}
+
+message ListCarsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  bool available_only = 3;
+}
+
+message CarMessage {
+  int32 id = 1;
+  string name = 2;
+  double price = 3;
+  int32 year = 4;
+  string image = 5;
+  bool sold_out = 6;
+}
+
+message ListCarsResponse {
+  repeated CarMessage items = 1;
+  int32 total = 2;
+}
+
+message CreatePurchaseRequest {
+  int32 car_id = 1;
+  string buyer_email = 2;
+  string payment_method = 3;
+}
+
+message PurchaseMessage {
+  int32 purchase_id = 1;
+  int32 car_id = 2;
+  double amount_to_add = 3;
+}

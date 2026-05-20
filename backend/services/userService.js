@@ -14,8 +14,39 @@ function getProfileFromToken(user) {
   };
 }
 
-async function listUsersForAdmin() {
-  return userRepository.listUsersSafe();
+async function listUsersForAdmin(filters = {}) {
+  const usePagination =
+    filters.page !== undefined ||
+    filters.pageSize !== undefined ||
+    filters.role ||
+    filters.q ||
+    filters.is_active !== undefined;
+
+  if (!usePagination) {
+    const rows = await userRepository.listUsersSafe();
+    return { data: rows, meta: { total: rows.length, page: 1, pageSize: rows.length, totalPages: 1 } };
+  }
+
+  const { parsePaginationQuery, buildPaginationMeta } = require("../lib/pagination");
+  const { page, pageSize, offset } = parsePaginationQuery(filters, {
+    defaultPageSize: 20,
+    maxPageSize: 100,
+  });
+  const { rows, total } = await userRepository.listUsersPaginated({
+    limit: pageSize,
+    offset,
+    role: filters.role,
+    q: filters.q,
+    is_active: filters.is_active,
+    sort: filters.sort,
+  });
+  return {
+    data: rows.map((u) => ({
+      ...u,
+      is_active: Number(u.is_active) === 1,
+    })),
+    meta: buildPaginationMeta({ total, page, pageSize }),
+  };
 }
 
 async function getUserForAdmin(id) {

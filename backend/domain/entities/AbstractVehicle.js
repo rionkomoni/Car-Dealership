@@ -9,6 +9,13 @@ class AbstractVehicle {
     this.estimatedValue = estimatedValue == null ? null : Number(estimatedValue);
   }
 
+  /**
+   * Polymorphic display — overridden in subclasses.
+   */
+  getSummary() {
+    return `${this.name} (${this.year})`;
+  }
+
   validateCommon() {
     if (!this.name) {
       throw new Error("Vehicle name is required.");

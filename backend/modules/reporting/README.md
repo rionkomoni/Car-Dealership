@@ -1,44 +1,62 @@
-# Moduli: Statistikat dhe raportimi (Statistics & reporting)
+# Moduli: Statistikat & Raportimi (Statistics & reporting)
 
 ## Përmbledhje
 
-Numërues për përdorues/vetura/kontakte, inbox kontimesh për admin, histori logjesh veturash (Mongo).
+Dashboard admin, grafika, blerje/trade-in, menaxhim test-drive, panel menaxheri, fatura PDF, logje aktiviteti veturash (Mongo).
 
-## API publike (HTTP)
+## Interfaqe publike (API)
 
-### Admin — `/api/admin` (kërkon JWT + rol `admin`)
-
-| Metoda | Rruga | Përshkrim |
-|--------|-------|-----------|
-| GET | `/api/admin/stats` | `users`, `cars`, `contactsMongo`, `purchases`, `testDrives` |
-| GET | `/api/admin/contacts` | Lista e mesazheve (Mongo) |
-| GET | `/api/admin/purchases` | Lista e blerjeve dhe trade-in |
-| GET | `/api/admin/test-drives` | Lista e kërkesave për test-drive |
-| PATCH | `/api/admin/test-drives/:id/status` | Ndryshim statusi (`pending` / `scheduled` / `completed` / `cancelled`) |
-| GET | `/api/admin/cars-inventory` | Inventari i plotë i makinave (pa pagination; për dashboard) |
-
-### Manager — `/api/manager` (kërkon JWT + rol `manager` ose `admin`)
+### Admin — `/api/admin` (JWT + rol `admin`)
 
 | Metoda | Rruga | Përshkrim |
 |--------|-------|-----------|
-| GET | `/api/manager/overview` | Overview operativ: total/sold/available/purchases + 5 blerjet e fundit |
-| GET | `/api/manager/trade-ins/pending` | Lista e trade-ins në pritje për review |
-| PATCH | `/api/manager/trade-ins/:purchaseId/decision` | Vendim `approved/rejected` + shënim menaxheri |
+| GET | `/api/admin/stats` | Numërues (users, cars, contacts, …) |
+| GET | `/api/admin/charts` | Të dhëna grafikësh + revenue |
+| GET | `/api/admin/analytics` | Snapshot analitik |
+| GET | `/api/admin/purchases` | Lista blerjesh + trade-in |
+| GET | `/api/admin/contacts` | Inbox Mongo |
+| GET | `/api/admin/test-drives` | Të gjitha kërkesat |
+| PATCH | `/api/admin/test-drives/:id/status` | Ndryshim statusi |
+| GET | `/api/admin/cars-inventory` | Inventar i plotë |
+| GET | `/api/admin/audit-logs` | Audit trail |
+
+### Manager — `/api/manager` (JWT + `manager` ose `admin`)
+
+| Metoda | Rruga | Përshkrim |
+|--------|-------|-----------|
+| GET | `/api/manager/overview` | Metrika + 5 blerjet e fundit |
+| GET | `/api/manager/trade-ins/pending` | Trade-in në pritje |
+| PATCH | `/api/manager/trade-ins/:purchaseId/decision` | Approve / reject |
+| GET | `/api/manager/invoices/:purchaseId` | Payload fature |
+| GET | `/api/manager/invoices/:purchaseId/pdf` | Shkarkim PDF |
 
 ### Logje — `/api/car-logs` (admin)
 
 | Metoda | Rruga | Përshkrim |
 |--------|-------|-----------|
-| GET | `/api/car-logs` | Deri në 100 hyrje së fundmi |
+| GET | `/api/car-logs` | ~100 hyrjet e fundit (Mongo) |
+
+**v1:** `/api/v1/admin/*`, `/api/v1/manager/*`, `/api/v1/car-logs`
+
+## Abstraksione
+
+- **Eksporton:** lexim agreguar, raporte, vendime trade-in  
+- **Nuk modifikon:** katalog veturash direkt (përdor PATCH sold-out përmes admin që thërret routes cars)  
+- **Përdor:** `BusinessLogicService` për analytics/overview  
 
 ## Skedarë kryesorë
 
-- `backend/routes/adminRoutes.js`
-- `backend/routes/managerRoutes.js`
+- `backend/routes/adminRoutes.js`, `managerRoutes.js`, `carLogRoutes.js`
 - `backend/controllers/adminController.js`
-- `backend/services/adminService.js`
-- `backend/routes/carLogRoutes.js`
+- `backend/services/invoicePdfService.js`
+- `backend/modules/reporting/index.js` (3 mount: admin, manager, car-logs)
 
-## Logging / monitoring
+## Logging & monitoring
 
-- `stats_read`, `car_logs_read`, `contact_inbox_read` përmes `moduleLogger` (`module:reporting` në mesazh).
+| Ngjarje | Kanal |
+|---------|-------|
+| `stats_read` | `module:reporting` |
+| `car_logs_read` | `module:reporting` |
+| `contact_inbox_read` | `module:reporting` |
+
+Monitoring: Grafana/Loki në `docker-compose.gateway.yml` (opsional).

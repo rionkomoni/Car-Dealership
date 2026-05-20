@@ -78,6 +78,54 @@ async function listUsersSafe() {
   return rows;
 }
 
+async function listUsersPaginated({
+  limit = 20,
+  offset = 0,
+  role,
+  q,
+  is_active,
+  sort = "id_asc",
+} = {}) {
+  const where = [];
+  const params = [];
+
+  if (role) {
+    where.push("role = ?");
+    params.push(String(role).trim());
+  }
+  if (is_active !== undefined && is_active !== "") {
+    where.push("is_active = ?");
+    params.push(is_active === true || is_active === "true" || is_active === 1 ? 1 : 0);
+  }
+  if (q) {
+    where.push("(name LIKE ? OR email LIKE ?)");
+    const like = `%${String(q).trim()}%`;
+    params.push(like, like);
+  }
+
+  const orderMap = {
+    id_asc: "id ASC",
+    id_desc: "id DESC",
+    name_asc: "name ASC",
+    email_asc: "email ASC",
+  };
+  const orderBy = orderMap[sort] || orderMap.id_asc;
+  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+  const [rows] = await pool.query(
+    `SELECT id, name, email, role, is_active, activated_at
+     FROM users ${whereSql}
+     ORDER BY ${orderBy}
+     LIMIT ? OFFSET ?`,
+    [...params, Number(limit), Number(offset)]
+  );
+  const [[countRow]] = await pool.query(
+    `SELECT COUNT(*) AS total FROM users ${whereSql}`,
+    params
+  );
+  return { rows, total: Number(countRow.total || 0) };
+}
+
 async function setUserActiveById(id) {
   const [result] = await pool.query(
     "UPDATE users SET is_active = 1, activated_at = NOW() WHERE id = ?",
@@ -157,6 +205,7 @@ module.exports = {
   deleteUserById,
   countUsers,
   listUsersSafe,
+  listUsersPaginated,
   setUserActiveById,
   setUserPasswordById,
   insertActivationToken,

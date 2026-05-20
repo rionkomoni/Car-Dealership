@@ -1,5 +1,6 @@
 const Joi = require("joi");
 const authService = require("../services/authService");
+const { auditContextFromReq } = require("../services/auditService");
 const { logModuleEvent } = require("../lib/moduleLogger");
 
 const registerSchema = Joi.object({
@@ -36,10 +37,13 @@ async function login(req, res) {
   if (error) return res.status(400).json({ message: error.details[0].message });
 
   try {
-    const result = await authService.loginUser({
-      email: String(value.email).trim().toLowerCase(),
-      password: value.password,
-    });
+    const result = await authService.loginUser(
+      {
+        email: String(value.email).trim().toLowerCase(),
+        password: value.password,
+      },
+      auditContextFromReq(req)
+    );
     logModuleEvent("authentication", "login_ok", {
       userId: result.user?.id,
       role: result.user?.role,

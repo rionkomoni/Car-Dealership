@@ -1,25 +1,71 @@
+/* —— Aurum Motors — design tokens —— */
 :root {
-  --bg: #f5f6f8;
-  --text: #0a1628;
-  --muted: #5a6578;
-  --border: #e0e0e0;
-  --card: #ffffff;
-  --header-bg: #ffffff;
-  --link: #003399;
-  --accent: #003399;
-  --accent-hover: #002266;
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+
+  --ink: #0c0f14;
+  --ink-soft: #1a2030;
+  --surface: #f3f4f7;
+  --surface-elevated: #ffffff;
+  --muted: #5c6578;
+  --border: rgba(12, 15, 20, 0.1);
+  --border-strong: rgba(12, 15, 20, 0.16);
+
+  --gold: #c9a227;
+  --gold-light: #e8d48a;
+  --gold-dark: #9a7b1a;
+  --accent: var(--gold);
+  --accent-hover: var(--gold-dark);
+  --link: #1a4d8c;
+
+  --bg: var(--surface);
+  --text: var(--ink);
+  --card: var(--surface-elevated);
+  --header-bg: rgba(12, 15, 20, 0.92);
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --shadow-sm: 0 2px 12px rgba(12, 15, 20, 0.06);
+  --shadow-md: 0 12px 40px rgba(12, 15, 20, 0.1);
+  --shadow-lg: 0 24px 64px rgba(12, 15, 20, 0.14);
+  --shadow-gold: 0 8px 32px rgba(201, 162, 39, 0.22);
+
+  --header-height: 72px;
+  --transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: var(--bg);
   color: var(--text);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse 120% 80% at 100% -20%, rgba(201, 162, 39, 0.08), transparent 50%),
+    radial-gradient(ellipse 80% 60% at 0% 100%, rgba(26, 77, 140, 0.06), transparent 45%),
+    linear-gradient(180deg, #f8f9fb 0%, var(--bg) 100%);
+  min-height: 100vh;
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+}
+
+::selection {
+  background: rgba(201, 162, 39, 0.25);
+  color: var(--ink);
 }

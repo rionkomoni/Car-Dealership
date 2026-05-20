@@ -1,18 +1,6 @@
-const auth = require("./auth");
+const requireRole = require("./requireRole");
 
-/**
- * Runs JWT auth, then allows only users with role === "admin".
- */
-function requireAdmin(req, res, next) {
-  auth(req, res, () => {
-    const role = req.user?.role;
-    const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
-    const isAdmin = role === "admin" || roles.includes("ROLE_ADMIN");
-    if (!isAdmin) {
-      return res.status(403).json({ message: "Admin access required" });
-    }
-    next();
-  });
-}
+/** JWT auth + ROLE_ADMIN / role admin */
+const requireAdmin = requireRole(["admin", "ROLE_ADMIN"]);
 
 module.exports = requireAdmin;

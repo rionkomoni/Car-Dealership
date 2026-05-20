@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, NavLink, useNavigate } from "react-router-dom";
+import api from "../api";
+import { REFRESH_TOKEN_KEY } from "../authStorage";
+import ThemeToggle from "./ThemeToggle";
 import { logout as logoutAction } from "../store/authSlice";
+import { clearWishlist } from "../store/wishlistSlice";
 
 const NAV_BREAKPOINT_PX = 768;
 
@@ -78,8 +82,17 @@ function Navbar() {
     };
   }, [menuOpen]);
 
-  const logout = () => {
+  const logout = async () => {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (refreshToken) {
+      try {
+        await api.post("/api/auth/logout", { refreshToken });
+      } catch {
+        /* revokimi server-side opsional nëse rrjeti dështon */
+      }
+    }
     dispatch(logoutAction());
+    dispatch(clearWishlist());
     closeMenu();
     navigate("/");
   };
@@ -94,6 +107,7 @@ function Navbar() {
           <CarLogoIcon />
           <span>Car Dealership</span>
         </Link>
+        <ThemeToggle />
         <button
           type="button"
           className="nav-toggle"
@@ -149,18 +163,13 @@ function Navbar() {
                 </Link>
               </>
             ) : manager ? (
-              <>
-                <Link to="/manager" className="nav-link nav-admin" onClick={closeMenu}>
-                  Manager
-                </Link>
-                <Link to="/logs" className="nav-link" onClick={closeMenu}>
-                  Logs
-                </Link>
-              </>
+              <Link to="/manager" className="nav-link nav-admin" onClick={closeMenu}>
+                Manager
+              </Link>
             ) : (
-              <span className="nav-link" aria-disabled>
-                User mode
-              </span>
+              <Link to="/account" className="nav-link" onClick={closeMenu}>
+                Llogaria
+              </Link>
             )}
             {userName ? (
               <span className="nav-greeting">

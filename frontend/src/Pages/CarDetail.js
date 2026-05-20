@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
+import CarGalleryViewer from "../components/CarGalleryViewer";
 import api from "../api";
 import { getCarImageUrls } from "../utils/carGallery";
 import { useAppToast } from "../components/ui/AppToastProvider";
+import { toggleWishlist } from "../store/wishlistSlice";
 
 function SpecBlock({ label, value }) {
   if (value === null || value === undefined || value === "") return null;
@@ -22,9 +24,10 @@ export default function CarDetail() {
   const [car, setCar] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [photoIndex, setPhotoIndex] = useState(0);
+  const dispatch = useDispatch();
   const role = useSelector((s) => s.auth.user?.role);
   const user = useSelector((s) => s.auth.user);
+  const wishlistIds = useSelector((s) => s.wishlist.ids);
   const isAdmin = role === "admin";
   const { showToast } = useAppToast();
   const [downPayment, setDownPayment] = useState("");
@@ -41,16 +44,6 @@ export default function CarDetail() {
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
 
   const imageUrls = useMemo(() => getCarImageUrls(car), [car]);
-
-  useEffect(() => {
-    setPhotoIndex(0);
-  }, [id]);
-
-  useEffect(() => {
-    if (photoIndex >= imageUrls.length) {
-      setPhotoIndex(0);
-    }
-  }, [imageUrls.length, photoIndex]);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,8 +117,7 @@ export default function CarDetail() {
     }));
   }, [user?.name, user?.email]);
 
-  const mainSrc =
-    imageUrls.length > 0 ? imageUrls[photoIndex] : null;
+  const isWishlisted = car ? wishlistIds.includes(car.id) : false;
 
   const finance = useMemo(() => {
     const priceValue = Number(priceNum || 0);
@@ -191,43 +183,19 @@ export default function CarDetail() {
         {car && !loading && (
           <div className="car-detail">
             <div className="car-detail-media">
-              <div className="car-gallery-main">
-                {mainSrc ? (
-                  <img
-                    src={mainSrc}
-                    alt={`${car.name} — pamja ${photoIndex + 1}`}
-                    className="car-detail-image car-gallery-main-img"
-                  />
-                ) : (
-                  <div className="car-detail-image car-detail-image--placeholder">
-                    Nuk ka foto të ngarkuar
-                  </div>
-                )}
-                <div className="car-detail-price-strip">
-                  <span>{price}</span>
-                  <span>Viti {car.year}</span>
-                </div>
+                            <CarGalleryViewer imageUrls={imageUrls} carName={car.name} />
+              <div className="car-detail-price-strip">
+                <span>{price}</span>
+                <span>Viti {car.year}</span>
               </div>
+              <button
+                type="button"
+                className={`btn btn-ghost car-detail-wishlist-btn${isWishlisted ? " is-active" : ""}`}
+                onClick={() => dispatch(toggleWishlist(car.id))}
+              >
+                {isWishlisted ? "\u2665 N\u00eb list\u00ebn e d\u00ebshirave" : "\u2661 Shto n\u00eb list\u00ebn e d\u00ebshirave"}
+              </button>
 
-              {imageUrls.length > 1 ? (
-                <div className="car-gallery-thumbs" role="tablist" aria-label="Pamje të veturës">
-                  {imageUrls.map((url, i) => (
-                    <button
-                      key={`${url}-${i}`}
-                      type="button"
-                      role="tab"
-                      aria-selected={i === photoIndex}
-                      className={`car-gallery-thumb${i === photoIndex ? " is-active" : ""}`}
-                      onClick={() => setPhotoIndex(i)}
-                    >
-                      <img src={url} alt="" loading="lazy" decoding="async" />
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              <p className="car-gallery-hint muted small">
-                Zgjidh miniaturën për të ndërruar pamjen.
-              </p>
             </div>
 
             <div className="car-detail-info">

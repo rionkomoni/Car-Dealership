@@ -11,6 +11,10 @@ class TradeInVehicle extends AbstractVehicle {
     this.validateCommon();
   }
 
+  getSummary() {
+    return `Trade-in: ${super.getSummary()} — vlerë €${this.estimatedValue}`;
+  }
+
   toDbShape() {
     return {
       trade_in_car: this.name,

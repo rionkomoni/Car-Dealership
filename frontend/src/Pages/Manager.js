@@ -16,6 +16,7 @@ import PageLayout from "../components/PageLayout";
 import api from "../api";
 import { getUser } from "../authHelpers";
 import { useAppToast } from "../components/ui/AppToastProvider";
+import { downloadInvoicePdf } from "../utils/invoicePdf";
 
 function formatTime(iso) {
   if (!iso) return "—";
@@ -167,6 +168,7 @@ export default function Manager() {
                       <th>Car</th>
                       <th>Buyer</th>
                       <th>Amount added</th>
+                      <th>Invoice</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -176,6 +178,25 @@ export default function Manager() {
                         <td>{p.car_name || `Car #${p.car_id}`}</td>
                         <td>{p.buyer_name}</td>
                         <td>{formatEuro(p.amount_to_add)}</td>
+                        <td>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={async () => {
+                              try {
+                                await downloadInvoicePdf(p.id);
+                                showToast("PDF downloaded.", "success");
+                              } catch (e) {
+                                showToast(
+                                  e.response?.data?.message || "PDF failed.",
+                                  "error"
+                                );
+                              }
+                            }}
+                          >
+                            PDF
+                          </Button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

@@ -1,267 +1,84 @@
 # Car Dealership
 
-Projekti lidh **Fazën I** (teknologjitë dhe integrimi) me **Fazën II** (arkitekturë e shtresuar) pa ndryshuar URL-të publike të API-së — frontend-i vazhdon të përdorë të njëjtat thirrje `axios` te `/api/*`.
+Platformë full-stack për autosallon: **React** (frontend) + **Express** (backend) + **MySQL** + **MongoDB**.
 
-## Faza II - Checklist (i implementuar)
+## Nisja lokale
 
-- Arkitekturë e shtresuar me module: authentication, users, business, reporting.
-- API versionim dhe health: `/api/v1/*`, `/api/v1/health`.
-- OpenAPI 3.0 në `backend/docs/openapi.js` dhe Swagger UI te `/api-docs`.
-- JWT auth, rate limiting, caching dhe HATEOAS në endpoint-et e makinave.
-- Rrjedhë blerjeje me trade-in: `POST /api/cars/:id/purchase` (markon automatikisht `sold_out`).
-- Menaxhim admin: `PATCH /api/cars/:id/sold-out`, `GET /api/admin/stats`, `GET /api/admin/purchases`.
-- Unit + integration tests në `tests/` (auth middleware, health/docs, phase2 endpoints).
-
-## Faza 7 - Modelimi i bazës së të dhënave
-
-- ERD me relacione 1:N dhe 1:1 (`users`, `cars`, `purchases`).
-- Constraints të avancuara: `CHECK`, `DEFAULT`, `UNIQUE`, `FOREIGN KEY`.
-- `ON DELETE CASCADE` për marrëdhënien `cars -> purchases`.
-- Indekse të optimizuara për listing, filtering dhe manager review queue.
-- Stored procedure + triggers për logjikë në nivel DB.
-- Modelim NoSQL me embedded entities + strategji denormalizimi/shardimi/konsistence.
-
-Dokumenti i plotë: [docs/database-modeling-phase7.md](docs/database-modeling-phase7.md)
-
-## Faza 8 - Diagramat Mbështetëse të Modelit
-
-- Component Diagram
-- Sequence Diagram për API calls
-- Deployment Diagram
-- State Diagram për lifecycle dinamik të veturës
-
-Dokumenti i plotë: [docs/supporting-diagrams-phase8.md](docs/supporting-diagrams-phase8.md)
-
-## 3. Frameworks & Teknologjitë (përputhje me rubrikën)
-
-| Kërkesë | Si implementohet në këtë projekt |
-|--------|-----------------------------------|
-| Backend enterprise (një nga: Spring Boot, Django/DRF, **Express.js**) | **Express.js** (Node.js) — `backend/` |
-| Frontend (një nga: **React**, Angular, Vue) | **React.js** — `frontend/` |
-| Routing dinamik | **React Router** — rrugë si `/cars/:id`, `/login`, etj. |
-| State management (Redux / Vuex) | **Redux Toolkit** — `frontend/src/store/` (`authSlice`, `store`) — `token` dhe `user` |
-| RabbitMQ / Kafka (mesazhe ndër-shërbim) | **RabbitMQ i implementuar opsionalisht** për evente (`backend/integrations/messageBus.js`) me fallback lokal; endpoint-e testimi te `/api/v1/integrations/messaging/*` |
-| gRPC (performancë e lartë) | **Nuk përdoret në këtë monolith** (REST/JSON aktiv), por arkitektura e modulizuar është gati për adapter gRPC në ndarje microservice |
-
-Nuk është e nevojshme të përdoren të gjitha backend-et në listë — zgjedhja është **një** stack; këtu: **Express + React**.
-
-## 4. Modularizimi i sistemit
-
-Katër module të pavarura logjikisht, me **API publike**, **dokumentim teknik** (`README.md` në çdo modul), dhe **logging/monitoring** të brendshëm (`backend/lib/moduleLogger.js` + gateway global).
-
-| Moduli | API kryesore | Dokumentacion |
-|--------|--------------|---------------|
-| Autentikimi | `/api/auth` | [backend/modules/authentication/README.md](backend/modules/authentication/README.md) |
-| Menaxhimi i përdoruesve | `/api/users/me`, `/api/users` (admin) | [backend/modules/users/README.md](backend/modules/users/README.md) |
-| Operacionet biznesore | `/api/cars`, `/api/contact` | [backend/modules/business/README.md](backend/modules/business/README.md) |
-| Statistikat & raportimi | `/api/admin`, `/api/car-logs` | [backend/modules/reporting/README.md](backend/modules/reporting/README.md) |
-
-Regjistrimi qendror i rrugëve: [backend/modules/registerModules.js](backend/modules/registerModules.js) — përmbledhje: [backend/modules/README.md](backend/modules/README.md).
-
-## Stack (Faza I — themeli)
-
-| Shtresa | Teknologji |
-|--------|------------|
-| Frontend | React, React Router, Axios, **Redux Toolkit** (gjendja e kyçjes: token + user) |
-| Backend | Express, JWT, Joi |
-| SQL | MySQL (`mysql2`) — përdoruesit dhe veturat |
-| NoSQL | MongoDB + Mongoose — kontakt, logje veturash |
-
-- **Frontend**: `frontend/` — `npm start` (proxy te `http://localhost:5000` nëse është konfiguruar).
-- **Backend**: rrënja — `npm start` ose `npm run dev` — dëgjon në `PORT` (default **5000**).
-- **Klienti API**: [frontend/src/api.js](frontend/src/api.js) — `Authorization: Bearer <token>` për rrugët e mbrojtura.
-
-## Arkitektura (Faza II — shtresa)
-
-Backend-i organizohet kështu (e njëjta kontratë HTTP si më parë):
-
-```mermaid
-flowchart LR
-  subgraph phase1 [Faza_I_Client]
-    React[React]
-    Axios[Axios]
-  end
-  subgraph phase2 [Faza_II_Server]
-    GW[Gateway_middleware]
-    Routes[routes]
-    Ctrl[controllers]
-    Svc[services]
-    Repo[repositories]
-    DB[(MySQL)]
-    MG[(MongoDB)]
-  end
-  React --> Axios
-  Axios -->|"GET_POST_/api"| GW
-  GW --> Routes
-  Routes --> Ctrl
-  Ctrl --> Svc
-  Svc --> Repo
-  Repo --> DB
-  Svc --> MG
-```
-
-| Rruga API (e pandryshuar) | Ku shkon në Fazën II |
-|---------------------------|----------------------|
-| `/api/auth/*` | `routes` → `authController` → `authService` → `userRepository` |
-| `/api/cars/*` | `routes` → `carController` → `carService` → `carRepository` (+ logje Mongo) |
-| `/api/admin/stats` | `routes` → `adminController` → `adminService` → repos SQL + Mongo |
-| `/api/contact`, `/api/car-logs` | routes ekzistuese (contact / logs) |
-
-### API Gateway Light
-
-Në [backend/index.js](backend/index.js):
-
-- `x-request-id`, rate limit in-memory, logging i thirrjeve.
-
-### Service Discovery dhe shëndeti
-
-- Registry: [backend/integrations/serviceRegistry.js](backend/integrations/serviceRegistry.js)
-- `GET /health` — registry + uptime
-- `GET /ready` — MySQL + MongoDB
-
-### Rrjedhat e refaktoruara eksplicit në MVC të shtresuar
-
-- Auth (`/api/auth`)
-- Cars CRUD (`/api/cars`)
-- Admin stats (`/api/admin/stats`)
-
-Më shumë: [backend/integrations/README.md](backend/integrations/README.md).
-
-## Si të nisësh (pa prishje)
-
-1. Nis MySQL dhe MongoDB (sipas mjedisit tënd).
-2. Konfiguro `backend/.env` (JWT, MySQL, Mongo URI).
-3. Nga rrënja: `npm start` (backend).
-4. Në `frontend/`: `npm start` (React).
-
-Nëse `REACT_APP_API_URL` nuk është vendosur, CRA proxy (nëse ekziston në `frontend/package.json`) dërgon `/api` te backend-i lokal.
-
-## Dockerize komponentët (Phase 5.1)
-
-- Backend image:
-  - `docker build -f backend/Dockerfile -t car-dealership-backend .`
-  - `docker run --env-file backend/.env -p 5000:5000 car-dealership-backend`
-- Frontend image:
-  - `docker build -f frontend/Dockerfile -t car-dealership-frontend .`
-  - `docker run -p 3000:80 car-dealership-frontend`
-
-## HTTPS gjithmonë aktiv (dev + prod)
-
-- Gateway (`deploy/nginx/api-gateway.conf`) bën redirect `80 -> 443`.
-- TLS endpoint:
-  - `https://localhost:8443`
-- Backend enforce HTTPS kur:
-  - `FORCE_HTTPS=true` (në `docker-compose.gateway.yml` është aktiv).
-
-### Dev (self-signed cert)
-
-Gjenero cert lokal në `deploy/nginx/certs/`:
+1. Ndiz **MySQL** (XAMPP) dhe **MongoDB** (opsional por rekomandohet).
+2. Krijo `backend/.env` (JWT, MySQL, Mongo URI).
+3. Instalo varësitë:
 
 ```bash
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout deploy/nginx/certs/tls.key \
-  -out deploy/nginx/certs/tls.crt \
-  -subj "/CN=localhost"
+npm install
+cd frontend && npm install && cd ..
 ```
 
-Pastaj:
+4. **Backend** (rrënja e projektit):
 
 ```bash
+npm run dev
+```
+
+→ http://localhost:5000 · Swagger: http://localhost:5000/api-docs
+
+5. **Frontend**:
+
+```bash
+cd frontend
+npm start
+```
+
+→ http://localhost:3000
+
+### Kredenciale default (pas seed)
+
+| Rol | Email | Password |
+|-----|-------|----------|
+| Admin | `admin@gmail.com` | `12345678` |
+| Manager | `manager@gmail.com` | `12345678` |
+
+## Teste
+
+```bash
+npm run lint
+npm test
+npm run test:coverage
+npm run test:integration:newman    # backend :5000 aktiv
+npm run test:e2e:run               # frontend + backend
+npm run test:performance
+npm run qa:full
+```
+
+## Docker
+
+```bash
+docker build -f backend/Dockerfile -t car-dealership-backend .
+docker build -f frontend/Dockerfile -t car-dealership-frontend .
 docker compose -f docker-compose.gateway.yml up -d
 ```
 
-### Prod (Let's Encrypt)
+Gateway: http://localhost:8080 · Grafana: http://localhost:3001
 
-- Përdor certbot për të gjeneruar `fullchain.pem` + `privkey.pem`.
-- Vendos cert-at si `tls.crt` / `tls.key` në mount path të gateway.
-- Mbaj renew periodik (`certbot renew`) dhe reload gateway pas renew.
+## Kubernetes & CI/CD
 
-## Kubernetes orchestration (auto-scaling + load-balancing + rolling updates)
+- Manifeste: `k8s/` · Helm: `helm/car-dealership/`
+- Pipeline: `.github/workflows/ci-cd.yml`
 
-- Manifestet janë në `k8s/`
-- Përfshin:
-  - `Deployment` për backend/frontend me `RollingUpdate`
-  - `Service` për load balancing brenda cluster-it
-  - `HorizontalPodAutoscaler (HPA)` për autoscaling
-  - `Ingress` për routing `/api` -> backend dhe `/` -> frontend
-- Udhëzimet e plota: `k8s/README.md`
+## API & monitoring
 
-## CI/CD Pipelines (GitHub Actions + Helm)
+| URL | Përshkrim |
+|-----|-----------|
+| `/api-docs` | Swagger UI |
+| `/health` | Liveness |
+| `/ready` | Readiness (MySQL + Mongo) |
+| `/status` | Dashboard live |
+| `/metrics` | Prometheus |
 
-- Workflow: `.github/workflows/ci-cd.yml`
-- Fazat:
-  - Linting + Unit tests
-  - Build & push Docker images (GHCR)
-  - Deploy në test environment (Helm)
-  - Run integration tests (Newman)
-  - Deploy në staging dhe production (Helm charts)
-- Helm chart:
-  - `helm/car-dealership/` me `values-test.yaml`, `values-staging.yaml`, `values-prod.yaml`
-- Quickstart praktik:
-  - `docs/ci-cd-quickstart.md`
+## Struktura
 
-Secrets të nevojshme në GitHub:
-- `KUBE_CONFIG_TEST`
-- `KUBE_CONFIG_STAGING`
-- `KUBE_CONFIG_PROD`
-- `TEST_BASE_URL`
+- `backend/` — API Express, module, repositories
+- `frontend/` — React SPA
+- `tests/` — Jest, Postman, performance
+- `cypress/` — E2E
 
-## Testim dhe validim (Phase III)
-
-- Unit + integration coverage: `npm run test:coverage`
-- E2E (Cypress): `npm run test:e2e:run`
-- Performance/load (Autocannon): `npm run test:performance`
-- Performance 1000+ users preset: `npm run test:performance:1k`
-- Full QA pipeline: `npm run qa:full`
-
-Parametra të load test:
-- `LOAD_TEST_URL` (default: `http://localhost:5000/health`)
-- `LOAD_TEST_DURATION_SEC` (default: `20`)
-- `LOAD_TEST_CONNECTIONS` (default: `50`)
-- `LOAD_TEST_MAX_AVG_LATENCY_MS` (default: `500`)
-- `LOAD_TEST_MIN_AVG_RPS` (default: `20`)
-
-## Monitorim dhe Observability
-
-- Structured module logging shkruhet në console **dhe** file: `backend/logs/application.log`
-- Prometheus metrics endpoint: `GET /metrics` (format i gatshëm për scrape)
-- API live health dashboard (express-status-monitor): `GET /status`
-- Stack i centralizimit të log-ëve (Loki + Promtail + Grafana) është në:
-  - `deploy/monitoring/loki-config.yml`
-  - `deploy/monitoring/promtail-config.yml`
-  - `deploy/monitoring/grafana-datasources.yml`
-- Nisje e plotë:
-  - `docker compose -f docker-compose.gateway.yml up -d`
-- UI:
-  - Grafana: `http://localhost:3001` (default `admin/admin`)
-  - Loki API: `http://localhost:3100`
-
-## Çfarë të instalosh për të punuar në projekt (mjedis real)
-
-Këto janë mjetet bazë që i duhen **këtij** repo:
-
-| Aplikacion / mjet | Pse |
-|-------------------|-----|
-| **Node.js** (LTS) | `npm`, backend Express, build i React-it. |
-| **Git** | versionim, commit, push në GitHub. |
-| **MySQL** | të dhënat relacionale (users, cars). Me **XAMPP** merr edhe MySQL + phpMyAdmin; ose MySQL Community nëse nuk përdor XAMPP. |
-| **MongoDB Community Server** (ose MongoDB Atlas në cloud) | kontaktet dhe logjet; pa Mongo, disa pjesë kthejnë bosh ose 503. |
-| **Cypress** | teste end-to-end për rrjedhat reale të përdoruesit. |
-| **Autocannon** | load/performance test për endpoint-et kritike. |
-| **Editor** (Cursor / VS Code) | shkrimi i kodit — opsional por praktik. |
-
-Opsionale: **Postman** ose **Thunder Client** për të testuar `GET/POST` te `http://localhost:5000/api/...`.
-
-Opsionale për enterprise setup:
-- RabbitMQ + Redis + Consul me `docker compose -f docker-compose.gateway.yml up`
-- Loki + Promtail + Grafana për centralizim log-esh me të njëjtin compose file
-- Kafka/gRPC mbeten opcionale dhe nuk kërkohen për ekzekutim lokal të këtij monolithi.
-
-## Kërkesë akademike: komunikim ndër-shërbim (vetëm përshkrim, jo në kod)
-
-Në një sistem me **shërbime të shumta** (jo në këtë monolith), zakonisht përdoren:
-
-- **RabbitMQ** ose **Apache Kafka** për radha mesazhesh (evente, punë asinkrone).
-- **gRPC** për thirrje të shpejta mes shërbimeve me kontratë të fortë (protobuf).
-
-Për këtë repo, **lidhja me kodin** është vetëm në kuptimin e **kontratës**: `serviceRegistry` + `/health` në Express janë **ekuivalenti i lehtë** i “discovery” brenda një aplikacioni; në një sistem të zgjeruar, shërbimet do regjistroheshin te një broker/registry dhe do komunikonin me Kafka/RabbitMQ/gRPC. Përshkrimi i plotë: [backend/integrations/README.md](backend/integrations/README.md).
+Module README: `backend/modules/*/README.md`

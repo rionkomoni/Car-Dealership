@@ -1,12 +1,35 @@
 # Modularizimi i sistemit
 
-Sistemi ndahet në **katër module** logjike me API publike, dokumentacion në çdo dosje `README.md`, dhe **logging** të brendshëm përmes `backend/lib/moduleLogger.js`.
+Katër **module të pavarura logjikisht**, secili me API publike, README teknik dhe logging përmes `moduleLogger`.
 
-| Moduli | Dosja | Prefiksi API |
-|--------|-------|----------------|
-| Autentikimi | [authentication](./authentication/) | `/api/auth` |
-| Menaxhimi i përdoruesve | [users](./users/) | `/api/users` |
-| Operacionet biznesore | [business](./business/) | `/api/cars`, `/api/contact` |
-| Statistikat & raportimi | [reporting](./reporting/) | `/api/admin`, `/api/car-logs` |
+| # | Moduli | Prefiks API | Dokumentim |
+|---|--------|-------------|------------|
+| 1 | Autentikimi | `/api/auth` | [authentication/README.md](./authentication/README.md) |
+| 2 | Përdoruesit | `/api/users` | [users/README.md](./users/README.md) |
+| 3 | Biznesi | `/api/cars`, `/api/contact`, `/api/uploads` | [business/README.md](./business/README.md) |
+| 4 | Raportimi | `/api/admin`, `/api/manager`, `/api/car-logs` | [reporting/README.md](./reporting/README.md) |
 
-Regjistrimi qendror: [registerModules.js](./registerModules.js) (thirret nga `backend/index.js`).
+## Regjistrim
+
+```javascript
+// backend/modules/registerModules.js
+registerApiModules(app); // log module_mount për çdo modul
+```
+
+Manifest (discovery): [moduleManifest.js](./moduleManifest.js)
+
+## Logging
+
+`backend/lib/moduleLogger.js` — format:
+
+```text
+[timestamp] [module:users] profile_read {"userId":2}
+```
+
+## Versionim
+
+Të njëjtat router në `/api/v1/*` — `backend/routes/v1/index.js`.
+
+## Shtresat
+
+[../architecture/layerMap.js](../architecture/layerMap.js)

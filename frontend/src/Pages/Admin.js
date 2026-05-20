@@ -3,8 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import api from "../api";
 import { isAdmin } from "../authHelpers";
+import AdminCharts from "../components/AdminCharts";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import { useAppToast } from "../components/ui/AppToastProvider";
+import { downloadInvoicePdf } from "../utils/invoicePdf";
 
 function formatTime(iso) {
   if (!iso) return "—";
@@ -18,6 +20,7 @@ function formatTime(iso) {
 export default function Admin() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+  const [charts, setCharts] = useState(null);
   const [contacts, setContacts] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [testDrives, setTestDrives] = useState([]);
@@ -43,14 +46,17 @@ export default function Admin() {
 
     (async () => {
       try {
-        const [statsRes, contactRes, purchaseRes, testDriveRes] = await Promise.all([
+        const [statsRes, chartsRes, contactRes, purchaseRes, testDriveRes] =
+          await Promise.all([
           api.get("/api/admin/stats"),
+          api.get("/api/admin/charts"),
           api.get("/api/admin/contacts"),
           api.get("/api/admin/purchases"),
           api.get("/api/admin/test-drives"),
         ]);
         if (!cancelled) {
           setStats(statsRes.data);
+          setCharts(chartsRes.data);
           setContacts(Array.isArray(contactRes.data) ? contactRes.data : []);
           setPurchases(Array.isArray(purchaseRes.data) ? purchaseRes.data : []);
           setTestDrives(Array.isArray(testDriveRes.data) ? testDriveRes.data : []);
@@ -227,6 +233,8 @@ export default function Admin() {
           </div>
         )}
 
+        <AdminCharts charts={charts} revenue={charts?.revenue} />
+
         <h2 className="spec-section-title" style={{ marginTop: "2rem" }}>
           Test-drive requests
         </h2>
@@ -321,6 +329,7 @@ export default function Admin() {
                   <th>Pagesa</th>
                   <th>Trade-in</th>
                   <th>Për të shtuar</th>
+                  <th>Faturë</th>
                 </tr>
               </thead>
               <tbody>
@@ -367,6 +376,25 @@ export default function Admin() {
                     </td>
                     <td>
                       <strong>{fmtPrice(p.amount_to_add)}</strong>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={async () => {
+                          try {
+                            await downloadInvoicePdf(p.id);
+                            showToast("PDF u shkarkua.", "success");
+                          } catch (e) {
+                            showToast(
+                              e.response?.data?.message || "PDF dështoi.",
+                              "error"
+                            );
+                          }
+                        }}
+                      >
+                        PDF
+                      </button>
                     </td>
                   </tr>
                 ))}

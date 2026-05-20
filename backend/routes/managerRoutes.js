@@ -3,6 +3,7 @@ const Joi = require("joi");
 const pool = require("../config/mysql");
 const requireManagerOrAdmin = require("../middleware/requireManagerOrAdmin");
 const businessLogicService = require("../application/services/BusinessLogicService");
+const { buildInvoicePdf } = require("../services/invoicePdfService");
 
 const router = express.Router();
 
@@ -40,6 +41,24 @@ router.get("/invoices/:purchaseId", async (req, res) => {
     const invoice = await businessLogicService.getInvoiceByPurchaseId(purchaseId);
     if (!invoice) return res.status(404).json({ message: "Purchase not found." });
     return res.json(invoice);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+router.get("/invoices/:purchaseId/pdf", async (req, res) => {
+  const purchaseId = Number(req.params.purchaseId);
+  if (!Number.isInteger(purchaseId) || purchaseId <= 0) {
+    return res.status(400).json({ message: "Invalid purchase id." });
+  }
+  try {
+    const invoice = await businessLogicService.getInvoiceByPurchaseId(purchaseId);
+    if (!invoice) return res.status(404).json({ message: "Purchase not found." });
+    const pdf = await buildInvoicePdf(invoice);
+    const filename = `${invoice.invoice_number || `invoice-${purchaseId}`}.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    return res.send(pdf);
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }

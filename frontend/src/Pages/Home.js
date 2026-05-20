@@ -1,42 +1,41 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import HomeListingCard from "../components/HomeListingCard";
+import HomeSearchStrip from "../components/HomeSearchStrip";
+import HomePlatformInfo from "../components/HomePlatformInfo";
 import api from "../api";
+import { toggleWishlist } from "../store/wishlistSlice";
 
 const HERO_CAR_IMAGE =
-  "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=1400&q=85";
+  "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=1920&q=88";
+
+const DEFAULT_FILTERS = {
+  q: "",
+  minPrice: "",
+  maxPrice: "",
+  minYear: "",
+  maxYear: "",
+  fuel: "",
+  transmission: "",
+  bodyType: "",
+  availableOnly: true,
+  sort: "latest",
+  page: 1,
+  pageSize: 8,
+};
 
 export default function Home() {
+  const dispatch = useDispatch();
   const role = useSelector((s) => s.auth.user?.role);
+  const wishlistIds = useSelector((s) => s.wishlist.ids);
   const isAdmin = role === "admin";
   const [cars, setCars] = useState([]);
   const [meta, setMeta] = useState({ total: 0, page: 1, pageSize: 8, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filters, setFilters] = useState({
-    q: "",
-    minPrice: "",
-    maxPrice: "",
-    minYear: "",
-    maxYear: "",
-    fuel: "",
-    transmission: "",
-    bodyType: "",
-    availableOnly: true,
-    sort: "latest",
-    page: 1,
-    pageSize: 8,
-  });
-  const [wishlistIds, setWishlistIds] = useState(() => {
-    try {
-      const raw = localStorage.getItem("car_wishlist_ids");
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [compareCars, setCompareCars] = useState([]);
 
   useEffect(() => {
@@ -55,9 +54,9 @@ export default function Home() {
           ? data
           : Array.isArray(data?.data)
             ? data.data
-          : Array.isArray(data?.cars)
-            ? data.cars
-            : [];
+            : Array.isArray(data?.cars)
+              ? data.cars
+              : [];
         if (!cancelled) {
           setCars(list);
           setMeta({
@@ -85,10 +84,6 @@ export default function Home() {
     };
   }, [filters]);
 
-  useEffect(() => {
-    localStorage.setItem("car_wishlist_ids", JSON.stringify(wishlistIds));
-  }, [wishlistIds]);
-
   const compareIds = useMemo(() => compareCars.map((c) => c.id), [compareCars]);
 
   function updateFilter(name, value) {
@@ -99,10 +94,12 @@ export default function Home() {
     }));
   }
 
+  function clearFilters() {
+    setFilters({ ...DEFAULT_FILTERS });
+  }
+
   function handleToggleWishlist(car) {
-    setWishlistIds((prev) =>
-      prev.includes(car.id) ? prev.filter((id) => id !== car.id) : [...prev, car.id]
-    );
+    dispatch(toggleWishlist(car.id));
   }
 
   function handleToggleCompare(car) {
@@ -119,186 +116,61 @@ export default function Home() {
 
   return (
     <PageLayout>
-      <section className="home-hero home-hero--split" aria-labelledby="home-heading">
-        <div className="home-hero-copy">
-          <h1 id="home-heading" className="home-hero-title">
+      <section className="showroom-hero" aria-labelledby="home-heading">
+        <div className="showroom-hero-bg">
+          <img src={HERO_CAR_IMAGE} alt="" />
+        </div>
+        <div className="showroom-hero-content">
+          <span className="showroom-hero-badge">Showroom Digital</span>
+          <h1 id="home-heading" className="showroom-hero-title">
             Gjej veturën tënde
           </h1>
-          <p className="home-hero-lead">
-            Zbuloni koleksionin tonë të përzgjedhur të makinave cilësore. Oferta
-            speciale dhe shërbim profesional.
+          <p className="showroom-hero-lead">
+            Koleksion premium me specifika të hapura, krahasim live dhe blerje
+            online — nga shfletimi deri te test-drive.
           </p>
-          <div className="home-hero-actions">
-            <a href="#inventory" className="btn home-hero-btn home-hero-btn--primary">
+          <div className="showroom-hero-actions">
+            <a href="#inventory" className="showroom-hero-btn showroom-hero-btn--primary">
               Shiko inventarin
             </a>
-            <Link
-              to="/contact"
-              className="btn home-hero-btn home-hero-btn--outline"
-            >
+            <Link to="/contact" className="showroom-hero-btn showroom-hero-btn--ghost">
               Na kontakto
             </Link>
           </div>
         </div>
-        <div className="home-hero-visual" aria-hidden="true">
-          <img src={HERO_CAR_IMAGE} alt="" className="home-hero-car" />
-          <div className="home-hero-visual-fade" />
-        </div>
+        <HomeSearchStrip
+          filters={filters}
+          onChange={updateFilter}
+          onClear={clearFilters}
+        />
       </section>
 
       <section
         id="inventory"
-        className="home-inventory-block section wide"
+        className="showroom-inventory showroom-wrap"
         aria-labelledby="inventory-heading"
       >
-        <h2 id="inventory-heading" className="home-inventory-heading">
-          Stoku ynë - Makinat në shitje
-        </h2>
-        <p className="center muted home-status">
-          Këtu gjenden të gjitha makinat në inventar ({meta.total} gjithsej).
-        </p>
-
-        <div className="auth-card" style={{ marginBottom: "1rem" }}>
-          <h3 className="spec-section-title">Kërko dhe filtro</h3>
-          <div className="spec-grid">
-            <label className="field-label">
-              Kërko (emri/motori/ngjyra)
-              <input
-                className="field-input"
-                value={filters.q}
-                onChange={(e) => updateFilter("q", e.target.value)}
-              />
-            </label>
-            <label className="field-label">
-              Çmimi min
-              <input
-                className="field-input"
-                type="number"
-                min="0"
-                value={filters.minPrice}
-                onChange={(e) => updateFilter("minPrice", e.target.value)}
-              />
-            </label>
-            <label className="field-label">
-              Çmimi max
-              <input
-                className="field-input"
-                type="number"
-                min="0"
-                value={filters.maxPrice}
-                onChange={(e) => updateFilter("maxPrice", e.target.value)}
-              />
-            </label>
-            <label className="field-label">
-              Viti min
-              <input
-                className="field-input"
-                type="number"
-                min="1950"
-                value={filters.minYear}
-                onChange={(e) => updateFilter("minYear", e.target.value)}
-              />
-            </label>
-            <label className="field-label">
-              Viti max
-              <input
-                className="field-input"
-                type="number"
-                min="1950"
-                value={filters.maxYear}
-                onChange={(e) => updateFilter("maxYear", e.target.value)}
-              />
-            </label>
-            <label className="field-label">
-              Karburanti
-              <input
-                className="field-input"
-                value={filters.fuel}
-                onChange={(e) => updateFilter("fuel", e.target.value)}
-                placeholder="p.sh. Petrol"
-              />
-            </label>
-            <label className="field-label">
-              Transmisioni
-              <input
-                className="field-input"
-                value={filters.transmission}
-                onChange={(e) => updateFilter("transmission", e.target.value)}
-                placeholder="p.sh. Automatic"
-              />
-            </label>
-            <label className="field-label">
-              Body type
-              <input
-                className="field-input"
-                value={filters.bodyType}
-                onChange={(e) => updateFilter("bodyType", e.target.value)}
-                placeholder="SUV/Sedan..."
-              />
-            </label>
-            <label className="field-label">
-              Rendit sipas
-              <select
-                className="field-input"
-                value={filters.sort}
-                onChange={(e) => updateFilter("sort", e.target.value)}
-              >
-                <option value="latest">Më të rejat</option>
-                <option value="price_asc">Çmimi: më i ulët</option>
-                <option value="price_desc">Çmimi: më i lartë</option>
-                <option value="year_desc">Viti: më i ri</option>
-                <option value="year_asc">Viti: më i vjetër</option>
-                <option value="mileage_asc">KM: më i ulët</option>
-                <option value="mileage_desc">KM: më i lartë</option>
-              </select>
-            </label>
-          </div>
-          <label className="field-label" style={{ display: "flex", gap: ".5rem", alignItems: "center" }}>
-            <input
-              type="checkbox"
-              checked={filters.availableOnly}
-              onChange={(e) => updateFilter("availableOnly", e.target.checked)}
-            />
-            Vetëm makinat në dispozicion
-          </label>
-          <div style={{ display: "flex", gap: ".5rem", marginTop: ".5rem" }}>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() =>
-                setFilters((prev) => ({
-                  ...prev,
-                  q: "",
-                  minPrice: "",
-                  maxPrice: "",
-                  minYear: "",
-                  maxYear: "",
-                  fuel: "",
-                  transmission: "",
-                  bodyType: "",
-                  availableOnly: true,
-                  sort: "latest",
-                  page: 1,
-                }))
-              }
-            >
-              Pastro filtrat
-            </button>
-          </div>
+        <div className="showroom-inventory-head">
+          <h2 id="inventory-heading" className="showroom-section-title">
+            Inventari ynë
+          </h2>
+          <p className="showroom-section-lead">
+            {meta.total} vetura — {wishlistIds.length} në listën tuaj të dëshirave.
+          </p>
         </div>
 
         {compareCars.length > 0 ? (
-          <div className="auth-card" style={{ marginBottom: "1rem" }}>
-            <h3 className="spec-section-title">Krahasimi (max 3)</h3>
+          <div className="showroom-compare">
+            <h3 className="spec-section-title">Krahasimi ({compareCars.length}/3)</h3>
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <table className="data-table" style={{ width: "100%" }}>
                 <thead>
                   <tr>
-                    <th style={{ textAlign: "left" }}>Makina</th>
-                    <th style={{ textAlign: "left" }}>Çmimi</th>
-                    <th style={{ textAlign: "left" }}>Viti</th>
-                    <th style={{ textAlign: "left" }}>KM</th>
-                    <th style={{ textAlign: "left" }}>Fuel</th>
+                    <th>Makina</th>
+                    <th>Çmimi</th>
+                    <th>Viti</th>
+                    <th>KM</th>
+                    <th>Karburanti</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -307,8 +179,8 @@ export default function Home() {
                       <td>{c.name}</td>
                       <td>{c.price}</td>
                       <td>{c.year}</td>
-                      <td>{c.mileage_km ?? "-"}</td>
-                      <td>{c.fuel || "-"}</td>
+                      <td>{c.mileage_km ?? "—"}</td>
+                      <td>{c.fuel || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -318,10 +190,15 @@ export default function Home() {
         ) : null}
 
         {loading && (
-          <p className="center muted home-status">Duke ngarkuar inventarin…</p>
+          <div className="showroom-skeleton-grid" aria-busy="true">
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <div key={n} className="showroom-skeleton-card" />
+            ))}
+          </div>
         )}
+
         {error && (
-          <p className="center error-text home-status" role="alert">
+          <p className="center error-text" role="alert">
             {error}
           </p>
         )}
@@ -329,14 +206,16 @@ export default function Home() {
         {!loading && !error && cars.length === 0 && (
           <div className="home-empty">
             <p className="center muted">
-              Ende nuk ka vetura në listë.{" "}
+              Nuk u gjet asnjë veturë me këto filtra.{" "}
+              <button type="button" className="btn btn-ghost" onClick={clearFilters}>
+                Pastro filtrat
+              </button>
               {isAdmin ? (
                 <>
-                  Shto inventarin nga <Link to="/admin">Admin Dashboard</Link>.
+                  {" "}
+                  ose <Link to="/admin">shto listim</Link> nga Admin.
                 </>
-              ) : (
-                <>Vetëm admini mund të shtojë listime.</>
-              )}
+              ) : null}
             </p>
           </div>
         )}
@@ -357,7 +236,7 @@ export default function Home() {
         )}
 
         {!loading && !error && cars.length > 0 ? (
-          <div style={{ display: "flex", justifyContent: "center", gap: ".5rem", marginTop: "1rem" }}>
+          <div className="showroom-pagination">
             <button
               type="button"
               className="btn btn-ghost"
@@ -366,7 +245,7 @@ export default function Home() {
             >
               ← Para
             </button>
-            <span className="muted" style={{ alignSelf: "center" }}>
+            <span className="muted">
               Faqja {meta.page} / {meta.totalPages}
             </span>
             <button
@@ -381,13 +260,14 @@ export default function Home() {
         ) : null}
       </section>
 
-      <section id="about" className="home-about section">
-        <h2 className="home-about-heading">Rreth nesh</h2>
+      <HomePlatformInfo />
+
+      <section id="about" className="showroom-about">
+        <h2 className="showroom-section-title">Rreth nesh</h2>
         <p className="home-about-text">
-          Car Dealership është autosallon i specializuar për vetura të
-          verifikuara premium dhe familjare. Ne ofrojmë transparencë të plotë
-          për çmimin, kilometrat dhe gjendjen teknike, me mbështetje nga
-          konsultimi fillestar deri te finalizimi i blerjes.
+          Car Dealership është autosallon i specializuar për vetura të verifikuara.
+          Platforma jonë web lidh inventarin, blerjen, test-drive dhe menaxhimin e
+          ekipit në një vend të vetëm — e ndërtuar me React dhe API moderne REST.
         </p>
       </section>
     </PageLayout>

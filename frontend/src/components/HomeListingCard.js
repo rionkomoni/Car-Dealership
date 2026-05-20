@@ -40,7 +40,7 @@ export default function HomeListingCard({
       ? `${car.power_hp} HP`
       : null,
   ].filter(Boolean);
-  const specLine = specParts.join(" | ");
+  const specLine = specParts.join(" · ");
 
   const to = `/cars/${car.id}`;
   const contactInterest = {
@@ -48,7 +48,7 @@ export default function HomeListingCard({
   };
 
   return (
-    <article className="home-listing-card">
+    <article className={`home-listing-card${isSoldOut ? " is-sold" : ""}`}>
       <Link to={to} className="home-listing-card-main">
         <div className="home-listing-image-wrap">
           {car.image ? (
@@ -64,12 +64,40 @@ export default function HomeListingCard({
               Nuk ka foto
             </div>
           )}
+          {isSoldOut ? (
+            <span className="home-listing-sold-badge">SOLD OUT</span>
+          ) : null}
+          <div className="home-listing-toolbar">
+            <button
+              type="button"
+              className={`home-listing-tool${isWishlisted ? " is-active" : ""}`}
+              title={isWishlisted ? "Hiq nga favoritet" : "Ruaj favorit"}
+              aria-pressed={isWishlisted}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggleWishlist?.(car);
+              }}
+            >
+              {isWishlisted ? "\u2665" : "\u2661"}
+            </button>
+            <button
+              type="button"
+              className={`home-listing-tool${isCompared ? " is-active" : ""}`}
+              title={isCompared ? "Hiq nga krahasimi" : "Krahaso"}
+              aria-pressed={isCompared}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggleCompare?.(car);
+              }}
+            >
+              {"\u2696"}
+            </button>
+          </div>
           <div className="home-listing-overlays">
             <span className="home-listing-overlay-cell">{priceStr}</span>
             <span className="home-listing-overlay-cell">{car.year}</span>
-            {isSoldOut ? (
-              <span className="home-listing-overlay-cell">SOLD OUT</span>
-            ) : null}
           </div>
         </div>
         <div className="home-listing-body">
@@ -79,17 +107,13 @@ export default function HomeListingCard({
               <span className="home-listing-pill">{car.body_type}</span>
             ) : null}
           </div>
-          <p className="home-listing-price-year">
-            {priceStr} · {car.year}
-          </p>
+          {specLine ? (
+            <p className="home-listing-specline">{specLine}</p>
+          ) : null}
           <ul className="home-listing-specs-list">
-            <li>
-              <span className="home-listing-spec-label">Viti:</span> {car.year}
-            </li>
             {mileage ? (
               <li>
-                <span className="home-listing-spec-label">Kilometrazhi:</span>{" "}
-                {mileage}
+                <span className="home-listing-spec-label">KM:</span> {mileage}
               </li>
             ) : null}
             {car.fuel ? (
@@ -98,25 +122,16 @@ export default function HomeListingCard({
                 {car.fuel}
               </li>
             ) : null}
-            {car.color ? (
-              <li>
-                <span className="home-listing-spec-label">Ngjyra:</span>{" "}
-                {car.color}
-              </li>
-            ) : null}
           </ul>
-          {specLine ? (
-            <p className="home-listing-specline">{specLine}</p>
-          ) : null}
         </div>
       </Link>
       <div className="home-listing-actions">
         <Link to={to} className="home-listing-action home-listing-action--detail">
-          Pamje &amp; specifikacione
+          Detaje
         </Link>
         {isSoldOut ? (
           <span className="home-listing-action home-listing-action--buy" aria-disabled="true">
-            Jo në dispozicion
+            Shitur
           </span>
         ) : (
           <Link
@@ -127,20 +142,6 @@ export default function HomeListingCard({
             Bli tani
           </Link>
         )}
-        <button
-          type="button"
-          className="home-listing-action home-listing-action--detail"
-          onClick={() => onToggleCompare?.(car)}
-        >
-          {isCompared ? "Hiq krahasimin" : "Krahaso"}
-        </button>
-        <button
-          type="button"
-          className="home-listing-action home-listing-action--detail"
-          onClick={() => onToggleWishlist?.(car)}
-        >
-          {isWishlisted ? "Hiq favoritin" : "Ruaj favorit"}
-        </button>
       </div>
     </article>
   );

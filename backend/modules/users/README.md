@@ -1,50 +1,62 @@
-# Moduli: Menaxhimi i përdoruesve (User management)
+# Moduli: Menaxhimi i Përdoruesve (User management)
 
 ## Përmbledhje
 
-CRUD për përdoruesit (admin), aktivizim i llogarisë me token (link i dërguar me email),
-si dhe ndryshim i fjalëkalimit me verifikim (current password).
+Profil i përdoruesit të kyçur, wishlist, blerjet dhe test-drive të mia, aktivizim llogarie, reset/ndryshim fjalëkalimi, CRUD përdoruesish (admin).
 
-## API publike (HTTP)
+## Interfaqe publike (API)
+
+### Përdoruesi i kyçur
 
 | Metoda | Rruga | Auth | Përshkrim |
 |--------|-------|------|-----------|
-| GET | `/api/users/me` | JWT | Profili nga token (pa fjalëkalim) |
-| POST | `/api/users/activation/request` | Public | Krijon token aktivizimi dhe dërgon email për aktivizim |
-| GET | `/api/users/activate?token=...` | Public | Aktivizon llogarinë |
-| POST | `/api/users/password/reset/request` | Public | Kërkon reset password dhe dërgon email |
-| POST | `/api/users/password/reset/confirm` | Public | Vendos password të ri me token reset |
-| POST | `/api/users/me/password` | JWT | Ndryshim password me verifikim |
-| GET | `/api/users` | Admin | Lista `id, name, email, role, is_active` |
-| GET | `/api/users/:id` | Admin | Detaje user (safe) |
-| POST | `/api/users` | Admin | Krijo user |
-| PUT | `/api/users/:id` | Admin | Përditëso user |
-| DELETE | `/api/users/:id` | Admin | Fshi user |
+| GET | `/api/users/me` | JWT | Profili nga token |
+| GET | `/api/users/me/purchases` | JWT | Blerjet e mia |
+| GET | `/api/users/me/test-drives` | JWT | Test-drive të mia |
+| GET | `/api/users/me/wishlist` | JWT | Lista e dëshirave |
+| POST | `/api/users/me/wishlist/sync` | JWT | Merge IDs lokale → DB |
+| POST | `/api/users/me/wishlist/:carId` | JWT | Shto në wishlist |
+| DELETE | `/api/users/me/wishlist/:carId` | JWT | Hiq nga wishlist |
+| POST | `/api/users/me/password` | JWT | Ndryshim fjalëkalimi |
+
+### Publike / aktivizim
+
+| Metoda | Rruga | Përshkrim |
+|--------|-------|-----------|
+| POST | `/api/users/activation/request` | Dërgon link aktivizimi |
+| GET | `/api/users/activate?token=` | Aktivizon llogarinë |
+| POST | `/api/users/password/reset/request` | Email reset |
+| POST | `/api/users/password/reset/confirm` | Password i ri me token |
+
+### Admin
+
+| Metoda | Rruga | Auth | Përshkrim |
+|--------|-------|------|-----------|
+| GET/POST | `/api/users` | Admin | Listo / krijo |
+| GET/PUT/DELETE | `/api/users/:id` | Admin | Lexo / përditëso / fshi |
+
+**v1:** `/api/v1/users/*`
+
+## Abstraksione
+
+- **Eksporton:** identitet përdoruesi, wishlist, self-service password  
+- **Nuk eksporton:** logjikë blerjeje (moduli biznesi), grafika admin (moduli raportimi)  
+- **Event:** `users.password_reset_requested` → `messageBus.js`  
 
 ## Skedarë kryesorë
 
 - `backend/routes/userRoutes.js`
 - `backend/controllers/userController.js`
 - `backend/services/userService.js`
-- `backend/repositories/userRepository.js` (`listUsersSafe`)
+- `backend/repositories/userRepository.js`, `wishlistRepository.js`
+- `backend/modules/users/index.js`
 
-## Logging / monitoring
+## Logging & monitoring
 
-- Ngjarje: `profile_read`, `admin_list`, `admin_create`, `admin_update`, `admin_delete` përmes `moduleLogger` (`module:users`).
+Ngjarje `module:users` (përmes `userController.js`):
 
-## Email konfigurimi (SMTP, SendGrid ose Mailtrap)
+`profile_read`, `my_purchases`, `my_test_drives`, `wishlist_list`, `wishlist_add`, `wishlist_remove`, `wishlist_sync`, `admin_list`, `admin_create`, `admin_update`, `admin_delete`, plus `logModuleError` për gabime.
 
-- `EMAIL_PROVIDER=smtp` ose `EMAIL_PROVIDER=sendgrid` ose `EMAIL_PROVIDER=mailtrap`
-- SMTP:
-  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`
-  - `SMTP_FROM` (opsional)
-- SendGrid:
-  - `SENDGRID_API_KEY`
-  - `SENDGRID_FROM`
-- Mailtrap API:
-  - `MAILTRAP_API_TOKEN`
-  - `MAILTRAP_FROM_EMAIL`
-  - `MAILTRAP_FROM_NAME` (opsional)
-- `PUBLIC_API_URL` (p.sh. `http://localhost:5000`) për linkun e aktivizimit
-- `PUBLIC_APP_URL` (p.sh. `http://localhost:3000`) për linkun e reset-password
-- `EXPOSE_ACTIVATION_LINK=true` dhe `EXPOSE_PASSWORD_RESET_LINK=true` vetëm për development/testing (opsional)
+## Email (opsional)
+
+`EMAIL_PROVIDER`, SMTP/SendGrid/Mailtrap — shiko variablat në README të mëparshëm të projektit.

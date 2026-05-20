@@ -1,6 +1,33 @@
 import "./App.css";
+import "./styles/premium-dealership.css";
+import "./styles/showroom.css";
+import "./styles/dark-theme.css";
+import "./styles/gallery-lightbox.css";
 
 import { Suspense, lazy, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  fetchWishlist,
+  syncWishlistFromLocal,
+} from "./store/wishlistSlice";
+
+function AppBootstrap() {
+  const dispatch = useDispatch();
+  const token = useSelector((s) => s.auth.token);
+
+  useEffect(() => {
+    if (token) {
+      dispatch(syncWishlistFromLocal()).finally(() => {
+        dispatch(fetchWishlist());
+      });
+    } else {
+      dispatch(fetchWishlist());
+    }
+  }, [token, dispatch]);
+
+  return null;
+}
+
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 
@@ -21,6 +48,7 @@ const CarLogs = lazy(() => import("./Pages/CarLogs.js"));
 const Admin = lazy(() => import("./Pages/Admin.js"));
 const Manager = lazy(() => import("./Pages/Manager.js"));
 const BuyCar = lazy(() => import("./Pages/BuyCar.js"));
+const Account = lazy(() => import("./Pages/Account.js"));
 
 function ScrollToHash() {
   const location = useLocation();
@@ -40,6 +68,7 @@ function ScrollToHash() {
 function App() {
   return (
     <AppToastProvider>
+      <AppBootstrap />
       <BrowserRouter>
         <ScrollToHash />
         <Suspense fallback={<div className="section narrow">Loading page…</div>}>
@@ -53,6 +82,7 @@ function App() {
             <Route path="/cars/:id" element={<CarDetail />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/cars/:id/buy" element={<BuyCar />} />
+              <Route path="/account" element={<Account />} />
             </Route>
             <Route element={<ManagerRoute />}>
               <Route path="/manager" element={<Manager />} />

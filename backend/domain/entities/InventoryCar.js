@@ -23,6 +23,12 @@ class InventoryCar extends AbstractVehicle {
       throw new Error("Inventory car price must be greater than zero.");
     }
   }
+
+  getSummary() {
+    const base = super.getSummary();
+    const status = this.soldOut ? " [SOLD]" : "";
+    return `${base} — €${this.price}${status}`;
+  }
 }
 
 module.exports = InventoryCar;

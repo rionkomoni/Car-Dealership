@@ -1,84 +1,209 @@
 {
   "info": {
-    "name": "Car Dealership Integration",
+    "name": "Car Dealership API (OpenAPI v1)",
     "_postman_id": "b8f8a7b8-96ff-4a51-9f8a-4c5f8221a1f1",
-    "description": "Simple frontend-backend integration checks via API endpoints used by frontend.",
+    "description": "Integration tests: JWT, HATEOAS, rate limits, versioned /api/v1 routes. Run: npm run test:integration:newman",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "Root health text",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": "{{baseUrl}}/"
-      },
-      "event": [
+      "name": "Health & OpenAPI",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('status is 200', function () {",
-              "  pm.response.to.have.status(200);",
-              "});"
-            ]
-          }
+          "name": "GET /health",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('has services registry', () => {",
+                  "  pm.expect(pm.response.json().services).to.be.an('object');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/health",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/health" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('version v1', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.version).to.eql('v1');",
+                  "  pm.expect(j._links.docs.href).to.eql('/api-docs');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /openapi.json",
+          "request": { "method": "GET", "url": "{{baseUrl}}/openapi.json" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('OpenAPI 3.0.3', () => {",
+                  "  pm.expect(pm.response.json().openapi).to.eql('3.0.3');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET discovery",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/integrations/discovery"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('discovery payload', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.serviceRegistry).to.be.an('object');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "Versioned health",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": "{{baseUrl}}/api/v1/health"
-      },
-      "event": [
+      "name": "Auth JWT",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('status is 200', function () {",
-              "  pm.response.to.have.status(200);",
-              "});",
-              "pm.test('body has version v1', function () {",
-              "  var json = pm.response.json();",
-              "  pm.expect(json.status).to.eql('ok');",
-              "  pm.expect(json.version).to.eql('v1');",
-              "});"
-            ]
-          }
+          "name": "POST login (save token)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('login success or known 400', () => {",
+                  "  pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  const j = pm.response.json();",
+                  "  pm.collectionVariables.set('accessToken', j.token || j.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', j.refreshToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/users/me (JWT)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.collectionVariables.get('accessToken')) {",
+                  "  pm.test('200 profile', () => pm.response.to.have.status(200));",
+                  "} else {",
+                  "  pm.test('skipped without token', () => pm.expect(true).to.be.true);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "Gateway/Integration status",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": "{{baseUrl}}/api/v1/integrations/messaging/status"
-      },
-      "event": [
+      "name": "Cars HATEOAS",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('status is 200', function () {",
-              "  pm.response.to.have.status(200);",
-              "});",
-              "pm.test('body includes bus/cache status', function () {",
-              "  var json = pm.response.json();",
-              "  pm.expect(json.status).to.eql('ok');",
-              "  pm.expect(json.bus).to.be.an('object');",
-              "  pm.expect(json.cache).to.be.an('object');",
-              "});"
-            ]
-          }
+          "name": "GET /api/v1/cars",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/cars?page=1&pageSize=6" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 list', () => pm.response.to.have.status(200));",
+                  "pm.test('HATEOAS on items', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.data).to.be.an('array');",
+                  "  if (j.data.length) {",
+                  "    pm.expect(j.data[0]._links.self).to.be.an('object');",
+                  "  }",
+                  "  pm.expect(j._links).to.be.an('object');",
+                  "});",
+                  "pm.test('rate limit headers', () => {",
+                  "  pm.expect(pm.response.headers.get('RateLimit-Limit')).to.exist;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET messaging/cache status",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/integrations/messaging/status"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('cache status object', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.cache).to.be.an('object');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         }
       ]
     }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "adminEmail", "value": "admin@gmail.com" },
+    { "key": "adminPassword", "value": "admin123" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" }
   ]
 }

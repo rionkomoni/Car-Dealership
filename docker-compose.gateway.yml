@@ -3,6 +3,8 @@ services:
     image: node:20
     working_dir: /app
     command: sh -c "npm install && npm start"
+    depends_on:
+      - consul
     ports:
       - "5000:5000"
     env_file:
@@ -10,6 +12,13 @@ services:
     environment:
       - LOG_FILE_PATH=/var/log/car-dealership/application.log
       - FORCE_HTTPS=true
+      - CONSUL_ENABLED=true
+      - CONSUL_HTTP_ADDR=http://consul:8500
+      - SERVICE_ID=car-dealership-backend
+      - SERVICE_NAME=car-dealership-api
+      - SERVICE_ADDRESS=backend
+      - SERVICE_PORT=5000
+      - SERVICE_HEALTH_URL=http://backend:5000/health
     volumes:
       - ./:/app
       - ./backend/logs:/var/log/car-dealership
@@ -59,10 +68,20 @@ services:
       - ./deploy/monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
       - ./backend/logs:/var/log/car-dealership:ro
 
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    depends_on:
+      - backend
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
   grafana:
     image: grafana/grafana:11.0.0
     depends_on:
       - loki
+      - prometheus
     ports:
       - "3001:3000"
     volumes:

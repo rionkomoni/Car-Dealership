@@ -1,23 +1,7 @@
-const auth = require("./auth");
+const requireRole = require("./requireRole");
 
-/**
- * Allows access for role manager or admin.
- */
-function requireManagerOrAdmin(req, res, next) {
-  auth(req, res, () => {
-    const role = req.user?.role;
-    const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
-    const ok =
-      role === "manager" ||
-      role === "admin" ||
-      roles.includes("ROLE_MANAGER") ||
-      roles.includes("ROLE_ADMIN");
-    if (!ok) {
-      return res.status(403).json({ message: "Manager or admin access required" });
-    }
-    next();
-  });
-}
+/** JWT auth + manager or admin (legacy role or ROLE_* claims) */
+const requireManagerOrAdmin = requireRole(["manager", "admin", "ROLE_MANAGER", "ROLE_ADMIN"]);
 
 module.exports = requireManagerOrAdmin;
 

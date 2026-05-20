@@ -4,14 +4,24 @@ require("dotenv").config({ path: path.join(__dirname, ".env") });
 const mysql = require("mysql2/promise");
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
 const mongoose = require("mongoose");
 const swaggerUi = require("swagger-ui-express");
 const pool = require("./config/mysql");
 const connectMongo = require("./config/mongo");
 const apiLimiter = require("./middleware/rateLimiter");
 const attachUserFromToken = require("./middleware/attachUserFromToken");
+const securitySanitizer = require("./middleware/securitySanitizer");
+const enforceHttps = require("./middleware/enforceHttps");
+const { runSqlMigrations } = require("./db/runMigrations");
 const openApiSpec = require("./docs/openapi");
 const { getServiceRegistry } = require("./integrations/serviceRegistry");
+const { getLayerArchitecture } = require("./architecture/layerMap");
+const {
+  registerWithConsul,
+  deregisterFromConsul,
+  getConsulStatus,
+} = require("./integrations/consulRegistry");
 const { initMessageBus, subscribeEvent } = require("./integrations/messageBus");
 
 
@@ -31,24 +41,77 @@ const {
 } = require("./db/seedSampleCars");
 const { seedAdminUser } = require("./db/seedAdmin");
 
-const app = express();
-const PORT = Number(process.env.PORT) || 5000;
+const uploadRoutes = require("./routes/uploadRoutes");
+const statusMonitor = require("express-status-monitor");
+const { metricsMiddleware, metricsHandler } = require("./lib/metrics");
 
+const PORT = Number(process.env.PORT) || 5000;
+const app = express();
+const uploadsPath = path.join(__dirname, "uploads");
+
+app.use(enforceHttps);
+app.use(
+  helmet({
+    contentSecurityPolicy: process.env.NODE_ENV === "production",
+    crossOriginEmbedderPolicy: false,
+    hsts:
+      process.env.FORCE_HTTPS === "true"
+        ? { maxAge: 31536000, includeSubDomains: true, preload: false }
+        : false,
+  })
+);
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
+app.use(securitySanitizer);
+app.use(
+  statusMonitor({
+    path: "/status",
+    title: "Car Dealership API",
+    spans: [{ interval: 1, retention: 60 }],
+    healthChecks: [
+      {
+        protocol: "http",
+        host: "localhost",
+        port: PORT,
+        path: "/health",
+      },
+    ],
+    chartVisibility: {
+      cpu: true,
+      mem: true,
+      load: true,
+      eventLoop: true,
+      heap: true,
+      responseTime: true,
+      rps: true,
+      statusCodes: true,
+    },
+  })
+);
+app.use(metricsMiddleware);
+app.use("/uploads", express.static(uploadsPath));
 app.use("/api", apiLimiter);
 app.use("/api", attachUserFromToken);
+app.use("/api/uploads", uploadRoutes);
 
 app.get("/", (req, res) => {
   res.send("Autosallon API po punon 🚀");
 });
 
+app.get("/metrics", metricsHandler);
+
 app.get("/health", (req, res) => {
   return res.json({
     status: "ok",
+    architecture: "layered-modular-monolith",
     uptimeSec: Number(process.uptime().toFixed(2)),
     timestamp: new Date().toISOString(),
     services: getServiceRegistry(),
+    layers: getLayerArchitecture().layers,
+    discovery: {
+      registry: "in-process",
+      consul: getConsulStatus(),
+    },
   });
 });
 
@@ -75,6 +138,8 @@ app.get("/ready", async (req, res) => {
   return res.status(statusCode).json(readiness);
 });
 
+app.get("/openapi.json", (req, res) => res.json(openApiSpec));
+app.get("/api/v1/openapi.json", (req, res) => res.json(openApiSpec));
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiSpec));
 app.use("/api/v1", v1Routes);
 
@@ -327,6 +392,16 @@ async function ensureAdvancedRelationalModel() {
     "fk_password_reset_tokens_user_id",
     "ALTER TABLE password_reset_tokens ADD CONSTRAINT fk_password_reset_tokens_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE"
   );
+  await ensureForeignKey(
+    "wishlists",
+    "fk_wishlists_user_id",
+    "ALTER TABLE wishlists ADD CONSTRAINT fk_wishlists_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE"
+  );
+  await ensureForeignKey(
+    "wishlists",
+    "fk_wishlists_car_id",
+    "ALTER TABLE wishlists ADD CONSTRAINT fk_wishlists_car_id FOREIGN KEY (car_id) REFERENCES cars(id) ON DELETE CASCADE ON UPDATE CASCADE"
+  );
 
   // Optimized indexes.
   await ensureIndex(
@@ -541,6 +616,19 @@ const startServer = async () => {
       )
     `);
 
+    startupStep = "ensure wishlists table";
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS wishlists (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        car_id INT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_wishlist_user_car (user_id, car_id),
+        INDEX idx_wishlist_user (user_id),
+        INDEX idx_wishlist_car (car_id)
+      )
+    `);
+
     startupStep = "ensure password_reset_tokens table";
     await pool.query(`
       CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -560,6 +648,8 @@ const startServer = async () => {
     await ensurePurchaseColumns();
     startupStep = "ensure db constraints and indexes";
     await ensureAdvancedRelationalModel();
+    startupStep = "run sql migrations";
+    await runSqlMigrations();
     startupStep = "ensure db procedures and triggers";
     await ensureDbProgrammability();
 
@@ -579,14 +669,32 @@ const startServer = async () => {
     startupStep = "init message bus";
     const bus = await initMessageBus();
     console.log(`Message bus mode: ${bus.mode}`);
-    subscribeEvent("system.test", (event) => {
+    await subscribeEvent("system.test", (event) => {
       console.log(`[event:${event.event}]`, event.payload);
     });
 
     startupStep = "listen";
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, async () => {
       console.log(`Server running on port ${PORT}`);
+      try {
+        const consul = await registerWithConsul();
+        if (consul.registered) {
+          console.log(
+            `Consul: registered as ${consul.serviceId} @ ${consul.consulAddr}`
+          );
+        }
+      } catch (consulErr) {
+        console.warn(`Consul registration skipped: ${consulErr.message}`);
+      }
     });
+
+    const shutdown = async (signal) => {
+      console.log(`${signal}: shutting down...`);
+      await deregisterFromConsul();
+      server.close(() => process.exit(0));
+    };
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+    process.on("SIGINT", () => shutdown("SIGINT"));
   } catch (error) {
     const message = error?.message || "Unknown startup error";
     const code = error?.code ? ` (${error.code})` : "";
