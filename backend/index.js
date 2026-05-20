@@ -1,3 +1,4 @@
+const fs = require("fs");
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
@@ -144,6 +145,15 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiSpec));
 app.use("/api/v1", v1Routes);
 
 registerApiModules(app);
+
+const frontendBuildPath = path.join(__dirname, "../frontend/build");
+if (fs.existsSync(frontendBuildPath)) {
+  app.use(express.static(frontendBuildPath));
+
+  app.get(/^\/(?!api|uploads|status|metrics|health|ready|api-docs).*/, (req, res) => {
+    res.sendFile(path.join(frontendBuildPath, "index.html"));
+  });
+}
 
 async function ensureMysqlDatabase() {
   if (process.env.MYSQL_AUTO_CREATE_DB !== "true") {
