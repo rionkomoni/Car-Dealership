@@ -5,6 +5,7 @@ frontend/build
 build
 coverage
 .env
+backend/.env
 *.log
 backend/logs
 deploy/nginx/certs
