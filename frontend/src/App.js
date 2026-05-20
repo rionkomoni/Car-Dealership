@@ -5,11 +5,17 @@ import "./styles/dark-theme.css";
 import "./styles/gallery-lightbox.css";
 
 import { Suspense, lazy, useEffect } from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchWishlist,
   syncWishlistFromLocal,
 } from "./store/wishlistSlice";
+import Home from "./Pages/Home";
+import AdminRoute from "./components/AdminRoute";
+import ManagerRoute from "./components/ManagerRoute";
+import ProtectedRoute from "./components/ProtectedRoute";
+import { AppToastProvider } from "./components/ui/AppToastProvider";
 
 function AppBootstrap() {
   const dispatch = useDispatch();
@@ -27,15 +33,6 @@ function AppBootstrap() {
 
   return null;
 }
-
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { useLocation } from "react-router-dom";
-
-import Home from "./Pages/Home";
-import AdminRoute from "./components/AdminRoute";
-import ManagerRoute from "./components/ManagerRoute";
-import ProtectedRoute from "./components/ProtectedRoute";
-import { AppToastProvider } from "./components/ui/AppToastProvider";
 
 const Login = lazy(() => import("./Pages/Login.js"));
 const Register = lazy(() => import("./Pages/Register.js"));
