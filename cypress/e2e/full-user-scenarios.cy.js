@@ -1,12 +1,18 @@
 const TOKEN_KEY = "car_dealership_token";
 const USER_KEY = "car_dealership_user";
+const REFRESH_TOKEN_KEY = "car_dealership_refresh_token";
 
 function setAuth(win, user) {
   win.localStorage.setItem(TOKEN_KEY, "e2e-demo-token");
+  win.localStorage.setItem(REFRESH_TOKEN_KEY, "e2e-refresh-token");
   win.localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
 describe("Full end-to-end user scenarios", () => {
+  beforeEach(() => {
+    cy.clearLocalStorage();
+  });
+
   it("registers a new user and redirects to login", () => {
     cy.intercept("POST", "/api/auth/register", {
       statusCode: 201,
@@ -14,9 +20,16 @@ describe("Full end-to-end user scenarios", () => {
     }).as("registerRequest");
 
     cy.visit("/register");
-    cy.get('input[autocomplete="name"]').type("E2E User");
-    cy.get('input[autocomplete="email"]').type("e2e.user@example.com");
-    cy.get('input[autocomplete="new-password"]').type("StrongPass123");
+    cy.contains(/create account/i).should("exist");
+    cy.get("#register-name").should("be.visible").and("be.enabled").type("E2E User");
+    cy.get("#register-email")
+      .should("be.visible")
+      .and("be.enabled")
+      .type("e2e.user@example.com");
+    cy.get("#register-password")
+      .should("be.visible")
+      .and("be.enabled")
+      .type("StrongPass123");
     cy.contains("button", /register/i).click();
 
     cy.wait("@registerRequest")
@@ -27,6 +40,10 @@ describe("Full end-to-end user scenarios", () => {
   });
 
   it("logs in a user and persists session", () => {
+    cy.intercept("GET", "/api/cars*", {
+      statusCode: 200,
+      body: { data: [], meta: { total: 0, page: 1, pageSize: 8, totalPages: 1 } },
+    }).as("carsAfterLogin");
     cy.intercept("POST", "/api/auth/login", {
       statusCode: 200,
       body: {
@@ -44,8 +61,8 @@ describe("Full end-to-end user scenarios", () => {
     }).as("loginRequest");
 
     cy.visit("/login");
-    cy.get('input[autocomplete="email"]').type("e2e.user@example.com");
-    cy.get('input[autocomplete="current-password"]').type("StrongPass123");
+    cy.get("#login-email", { timeout: 10000 }).type("e2e.user@example.com");
+    cy.get("#login-password").type("StrongPass123");
     cy.contains("button", /sign in|log in/i).click();
 
     cy.wait("@loginRequest");
@@ -99,6 +116,15 @@ describe("Full end-to-end user scenarios", () => {
       statusCode: 200,
       body: { users: 5, cars: 12, contactsMongo: 4, purchases: 7, testDrives: 3 },
     }).as("stats");
+    cy.intercept("GET", "/api/admin/charts", {
+      statusCode: 200,
+      body: {
+        purchasesByPaymentMethod: [],
+        carsBySoldOut: [],
+        testDrivesByStatus: [],
+        tradeInsByStatus: [],
+      },
+    }).as("charts");
     cy.intercept("GET", "/api/admin/contacts", {
       statusCode: 200,
       body: [],
@@ -127,7 +153,7 @@ describe("Full end-to-end user scenarios", () => {
       },
     });
 
-    cy.wait(["@stats", "@contacts", "@purchases", "@testDrives", "@inventory"]);
+    cy.wait(["@stats", "@charts", "@contacts", "@purchases", "@testDrives", "@inventory"]);
     cy.contains(/admin dashboard/i).should("exist");
     cy.contains(/users \(mysql\)/i).should("exist");
     cy.contains(/blerje \(mysql\)/i).should("exist");
