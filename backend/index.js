@@ -161,12 +161,13 @@ async function ensureMysqlDatabase() {
   }
 
   const host = process.env.MYSQL_HOST || "localhost";
+  const port = Number(process.env.MYSQL_PORT) || 3306;
   const user = process.env.MYSQL_USER || "root";
   const password = process.env.MYSQL_PASSWORD ?? "";
   const rawDb = process.env.MYSQL_DB || "car_dealership";
   const database = rawDb.replace(/[^a-zA-Z0-9_]/g, "") || "car_dealership";
 
-  const conn = await mysql.createConnection({ host, user, password });
+  const conn = await mysql.createConnection({ host, port, user, password });
   await conn.query(`CREATE DATABASE IF NOT EXISTS \`${database}\``);
   await conn.end();
 }
