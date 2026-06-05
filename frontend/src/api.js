@@ -33,6 +33,12 @@ api.interceptors.response.use(
 
     const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
     if (!refreshToken) {
+      if (!original._guestRetry) {
+        original._guestRetry = true;
+        localStorage.removeItem(TOKEN_KEY);
+        delete original.headers?.Authorization;
+        return api(original);
+      }
       return Promise.reject(error);
     }
 
@@ -67,6 +73,11 @@ api.interceptors.response.use(
     } catch (refreshErr) {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
+      if (!original._guestRetry) {
+        original._guestRetry = true;
+        delete original.headers?.Authorization;
+        return api(original);
+      }
       return Promise.reject(refreshErr);
     }
   }

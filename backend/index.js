@@ -710,11 +710,17 @@ const startServer = async () => {
     const message = error?.message || "Unknown startup error";
     const code = error?.code ? ` (${error.code})` : "";
     console.log(`Server error at "${startupStep}"${code}: ${message}`);
-    if (error?.code === "ECONNREFUSED" || error?.code === "ECONNRESET") {
+    if (
+      error?.code === "ECONNREFUSED" ||
+      error?.code === "ECONNRESET" ||
+      error?.code === "PROTOCOL_CONNECTION_LOST" ||
+      message.includes("Connection lost")
+    ) {
       console.log(
-        "Hint: start MySQL in XAMPP and verify backend/.env MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB."
+        "Hint: verify MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB (Railway public networking ON)."
       );
     }
+    process.exit(1);
   }
 };
 

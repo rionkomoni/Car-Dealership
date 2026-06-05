@@ -17,6 +17,10 @@ const {
 
 const router = express.Router();
 
+async function safeQuery(sql, params = []) {
+  return pool.query(sql, params);
+}
+
 const carBodySchema = Joi.object({
   name: Joi.string().required(),
   price: Joi.number().required(),
@@ -191,11 +195,11 @@ router.get("/", cache("2 minutes"), async (req, res) => {
     const offset = (safePage - 1) * safePageSize;
 
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
-    const [cars] = await pool.query(
+   const [cars] = await safeQuery(
       `SELECT * FROM cars ${whereSql} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
       [...params, safePageSize, offset]
     );
-    const [[countRow]] = await pool.query(
+   const [[countRow]] = await safeQuery(
       `SELECT COUNT(*) AS total FROM cars ${whereSql}`,
       params
     );

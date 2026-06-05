@@ -5,7 +5,7 @@ const connectMongo = async () => {
     process.env.MONGO_URI || "mongodb://127.0.0.1:27017/car_dealership";
 
   try {
-    await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 15000 });
     console.log("MongoDB connected");
   } catch (error) {
     console.log(

@@ -2,34 +2,28 @@ const jwt = require("jsonwebtoken");
 
 /**
  * Global JWT verifier (optional auth).
- * - If Authorization header is present, verifies token and attaches req.user.
- * - If header is missing, request continues (public routes).
- * - If header is present but invalid/expired, returns 401.
- *
- * This matches the "verify token on every request" requirement while keeping
- * existing route-level auth middleware for protected endpoints.
+ * - If Authorization header is missing, request continues as guest.
+ * - If token is valid, attaches req.user.
+ * - If token is invalid/expired, continues as guest (public routes stay public).
+ * Protected endpoints still enforce auth via route-level `auth` middleware.
  */
 function attachUserFromToken(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader) return next();
 
   const parts = String(authHeader).split(" ");
-  if (parts.length !== 2 || parts[0] !== "Bearer") {
-    return res.status(401).json({ message: "Token i pavlefshëm" });
-  }
-
-  const token = parts[1];
-  if (!token) {
-    return res.status(401).json({ message: "Token i pavlefshëm" });
+  if (parts.length !== 2 || parts[0] !== "Bearer" || !parts[1]) {
+    return next();
   }
 
   try {
     const secret = process.env.JWT_SECRET || "sekreti123";
-    req.user = jwt.verify(token, secret);
-    return next();
+    req.user = jwt.verify(parts[1], secret);
   } catch (error) {
-    return res.status(401).json({ message: "Token i pavlefshëm ose i skaduar" });
+    // Token i skaduar — mos blloko rutat publike si /api/cars.
   }
+
+  return next();
 }
 
 module.exports = attachUserFromToken;

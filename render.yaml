@@ -14,17 +14,23 @@ services:
         value: "true"
       - key: PORT
         value: "10000"
-      - key: MONGO_URI
-        fromSecret: mongo-uri
-      - key: MYSQL_HOST
-        fromSecret: mysql-host
-      - key: MYSQL_USER
-        fromSecret: mysql-user
-      - key: MYSQL_PASSWORD
-        fromSecret: mysql-password
-      - key: MYSQL_DB
-        fromSecret: mysql-db
-      - key: JWT_SECRET
-        fromSecret: jwt-secret
+      - key: MYSQL_AUTO_CREATE_DB
+        value: "false"
       - key: REACT_APP_API_URL
-        value: ""
+        value: https://api.cardealership.fit
+      - key: ADMIN_EMAIL
+        value: admin@gmail.com
+      - key: ADMIN_PASSWORD
+        value: "12345678"
+      - key: MANAGER_EMAIL
+        value: manager@gmail.com
+      - key: MANAGER_PASSWORD
+        value: "12345678"
+      - key: EMAIL_PROVIDER
+        value: smtp
+      - key: EXPOSE_ACTIVATION_LINK
+        value: "true"
+      - key: EXPOSE_PASSWORD_RESET_LINK
+        value: "true"
+      # Sekretet — vendosi manualisht në Render Dashboard (mos i commit në Git):
+      # MONGO_URI, MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB, JWT_SECRET
